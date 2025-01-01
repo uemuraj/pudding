@@ -52,7 +52,7 @@
 //
 // MessageText:
 //
-// %1 は実行中です。%0
+// %1 がログイン中です。%0
 //
 #define ID_TRAYICON_TIP                  ((LONG)0x00041000L)
 

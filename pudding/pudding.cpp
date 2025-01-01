@@ -1,13 +1,26 @@
 #include "pudding.h"
 #include "winmain.h"
+#include "session.h"
+
 #include "resource.h"
 #include "messages.h"
 
+using namespace wts;
 
 PuddingWindow::PuddingWindow(HWND hWnd, CREATESTRUCT * ps) : m_notifyIcon1(hWnd, WM_TRAYICON, ID_TRAYICON1)
 {
-	m_notifyIcon1.AddMenuItem(IDCLOSE, MessageResource(ID_MENU_EXIT, VS_TARGETNAME));
-	m_notifyIcon1.Show(::LoadIconW(nullptr, IDI_APPLICATION), MessageResource(ID_TRAYICON_TIP, VS_TARGETNAME));
+	m_notifyIcon1.AddItem(IDCLOSE, MessageResource(ID_MENU_EXIT, VS_TARGETNAME));
+
+	if (IsRemoteSession())
+	{
+		Client client;
+
+		m_notifyIcon1.Show(::LoadIconW(nullptr, IDI_INFORMATION), MessageResource(ID_TRAYICON_TIP, client.UserName()));
+	}
+	else
+	{
+		m_notifyIcon1.Show(::LoadIconW(nullptr, IDI_APPLICATION), MessageResource(ID_TRAYICON_TIP, (const wchar_t *) GetCurrentUserName()));
+	}
 }
 
 LRESULT PuddingWindow::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)

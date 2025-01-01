@@ -15,7 +15,7 @@ Severity=SEVERITY_SUCCESS
 Facility=FACILITY_ITF
 SymbolicName=ID_TRAYICON_TIP
 Language=Japanese
-%1 は実行中です。%0
+%1 がログイン中です。%0
 .
 
 MessageId=

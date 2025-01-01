@@ -3,6 +3,7 @@
   <ItemGroup>
     <ClCompile Include="winmain.cpp" />
     <ClCompile Include="pudding.cpp" />
+    <ClCompile Include="session.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="winmain.h" />
@@ -10,6 +11,7 @@
     <ClInclude Include="resource.h">
       <Filter>resource</Filter>
     </ClInclude>
+    <ClInclude Include="session.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="resource">

@@ -81,12 +81,39 @@ private:
 };
 
 
+//
+// TODO: 以下の関数は、別のヘッダーに移動する
+//
+
+#include <lmcons.h>
+
 inline POINT GetCursorPos() noexcept
 {
 	POINT pt;
 	::GetCursorPos(&pt);
 	return pt;
 }
+
+class GetCurrentUserName
+{
+	wchar_t m_data[UNLEN + 1];
+
+public:
+	GetCurrentUserName() : m_data{}
+	{
+		DWORD size = __crt_countof(m_data);
+
+		if (!::GetUserNameW(m_data, &size))
+		{
+			throw std::system_error(::GetLastError(), std::system_category(), "GetUserNameW()");
+		}
+	}
+
+	operator const wchar_t * () const
+	{
+		return m_data;
+	}
+};
 
 
 HINSTANCE GetInstance();
@@ -97,7 +124,6 @@ class MessageResource
 	wchar_t * m_data;
 
 public:
-	MessageResource(HINSTANCE hInstance, LONG id, ...);
 	MessageResource(LONG id, ...);
 	~MessageResource();
 

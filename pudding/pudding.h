@@ -23,7 +23,7 @@ public:
 		::DestroyMenu(m_handle);
 	}
 
-	void AddMenuItem(UINT id, const wchar_t * szText) const
+	void AddItem(UINT id, const wchar_t * szText) const
 	{
 		if (!::AppendMenuW(m_handle, MF_STRING, id, szText))
 		{

@@ -43,14 +43,6 @@ HINSTANCE GetInstance()
 	return (HINSTANCE) &__ImageBase;
 }
 
-MessageResource::MessageResource(HINSTANCE hInstance, LONG id, ...)
-{
-	va_list args{};
-	va_start(args, id);
-	::FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_HMODULE, hInstance, id, 0, (LPWSTR) &m_data, 0, &args);
-	va_end(args);
-}
-
 MessageResource::MessageResource(LONG id, ...)
 {
 	va_list args{};

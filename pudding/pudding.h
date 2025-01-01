@@ -31,7 +31,7 @@ public:
 		}
 	}
 
-	void ShowPopupMenu(HWND hWnd, POINT pt) const
+	void Popup(HWND hWnd, POINT pt) const
 	{
 		if (!::TrackPopupMenu(m_handle, TPM_RIGHTBUTTON, pt.x, pt.y, 0, hWnd, nullptr))
 		{
@@ -50,16 +50,24 @@ public:
 
 	~NotifyIcon() noexcept
 	{
-		::Shell_NotifyIconW(NIM_DELETE, this);
+		::Shell_NotifyIconW(NIM_DELETE, this); // !!!
 	}
 
-	void AddToTaskTray(HICON hIcon, const wchar_t * szTip)
+	void Show(HICON hIcon, const wchar_t * szTip)
 	{
 		this->hIcon = hIcon;
 
 		wcscpy_s(this->szTip, szTip);
 
 		if (!::Shell_NotifyIconW(NIM_ADD, this))
+		{
+			throw std::system_error(::GetLastError(), std::system_category(), "Shell_NotifyIconW()");
+		}
+	}
+
+	void Hide()
+	{
+		if (!::Shell_NotifyIconW(NIM_DELETE, this))
 		{
 			throw std::system_error(::GetLastError(), std::system_category(), "Shell_NotifyIconW()");
 		}

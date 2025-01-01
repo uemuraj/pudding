@@ -1,19 +1,19 @@
 #include "pudding.h"
 #include "winmain.h"
+#include "resource.h"
+#include "messages.h"
 
 
 PuddingWindow::PuddingWindow(HWND hWnd, CREATESTRUCT * ps) : m_notifyIcon1(hWnd, WM_TRAYICON, ID_TRAYICON1)
 {
-	// TODO: 文字列をリソースから読み込む
-
-	m_notifyIcon1.AddMenuItem(IDCLOSE, L"Exit");
-	m_notifyIcon1.AddToTaskTray(::LoadIconW(nullptr, IDI_APPLICATION), L"Pudding");
+	m_notifyIcon1.AddMenuItem(IDCLOSE, MessageResource(ID_MENU_EXIT, VS_TARGETNAME));
+	m_notifyIcon1.Show(::LoadIconW(nullptr, IDI_APPLICATION), MessageResource(ID_TRAYICON_TIP, VS_TARGETNAME));
 }
 
 LRESULT PuddingWindow::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	// * 作成されるインスタンスが１つだけであることを前提とする
-	// * 特定のメッセージ処理の場合のみ、例外をハンドリングする
+	// * 特定のメッセージのみ、メンバ関数のハンドラを呼び例外を処理する
 
 	static PuddingWindow * mainWindow;
 
@@ -76,7 +76,7 @@ LRESULT PuddingWindow::OnTrayIcon(HWND hWnd, UINT /*dummy*/, DWORD dwID, DWORD d
 	case ID_TRAYICON1:
 		if (dwMsg == WM_RBUTTONUP)
 		{
-			m_notifyIcon1.ShowPopupMenu(hWnd, GetCursorPos());
+			m_notifyIcon1.Popup(hWnd, GetCursorPos());
 		}
 		break;
 	}
@@ -89,9 +89,9 @@ namespace
 {
 	HWND CreateMainWindow(HINSTANCE hInstance)
 	{
-		WindowClass<VS_TARGETNAME> windowClass{ hInstance, &PuddingWindow::WindowProc };
-
 		// WNDCLASSEXW 構造体のメンバーを何も設定せずに、非表示でメッセージ処理専用のウィンドウを作成する
+
+		WindowClass<VS_TARGETNAME> windowClass{ hInstance, &PuddingWindow::WindowProc };
 
 		return windowClass.NewInstance(HWND_MESSAGE);
 	}

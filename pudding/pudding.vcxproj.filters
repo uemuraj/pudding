@@ -7,5 +7,23 @@
   <ItemGroup>
     <ClInclude Include="winmain.h" />
     <ClInclude Include="pudding.h" />
+    <ClInclude Include="resource.h">
+      <Filter>resource</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="resource">
+      <UniqueIdentifier>{d8c89011-6f70-494a-baad-13e343449101}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="messages.mc">
+      <Filter>resource</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="resource.rc">
+      <Filter>resource</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

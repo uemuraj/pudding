@@ -87,3 +87,28 @@ inline POINT GetCursorPos() noexcept
 	::GetCursorPos(&pt);
 	return pt;
 }
+
+
+HINSTANCE GetInstance();
+
+
+class MessageResource
+{
+	wchar_t * m_data;
+
+public:
+	MessageResource(HINSTANCE hInstance, LONG id, ...);
+	MessageResource(LONG id, ...);
+	~MessageResource();
+
+	MessageResource(const MessageResource &) = delete;
+	MessageResource & operator = (const MessageResource &) = delete;
+
+	MessageResource(MessageResource &&) = default;
+	MessageResource & operator = (MessageResource &&) = default;
+
+	operator const wchar_t * ()
+	{
+		return m_data ? m_data : L"null";
+	}
+};

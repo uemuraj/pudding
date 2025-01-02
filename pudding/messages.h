@@ -48,29 +48,74 @@
 
 
 //
-// MessageId: ID_TRAYICON_TIP
-//
-// MessageText:
-//
-// %1 がログイン中です。%0
-//
-#define ID_TRAYICON_TIP                  ((LONG)0x00041000L)
-
-//
 // MessageId: ID_MENU_EXIT
 //
 // MessageText:
 //
 // %1 を終了%0
 //
-#define ID_MENU_EXIT                     ((LONG)0x00041001L)
+#define ID_MENU_EXIT                     ((LONG)0x00040100L)
+
+//
+// MessageId: ID_STATUS_CONSOLE
+//
+// MessageText:
+//
+// コンソールから %1 がログインしています。%0
+//
+#define ID_STATUS_CONSOLE                ((LONG)0x00041000L)
+
+//
+// MessageId: ID_STATUS_REMOTE_USER
+//
+// MessageText:
+//
+// リモートから %1 がログインしています。%0
+//
+#define ID_STATUS_REMOTE_USER            ((LONG)0x00041001L)
+
+//
+// MessageId: ID_STATUS_REMOTE_HOST
+//
+// MessageText:
+//
+// %1 からログインしています。%0
+//
+#define ID_STATUS_REMOTE_HOST            ((LONG)0x00041002L)
+
+//
+// MessageId: ID_LOGIN_CONSOLE
+//
+// MessageText:
+//
+// コンソールから %1 がログインしました。%0
+//
+#define ID_LOGIN_CONSOLE                 ((LONG)0x00041003L)
+
+//
+// MessageId: ID_LOGIN_REMOTE_USER
+//
+// MessageText:
+//
+// リモートから %1 がログインしました。%0
+//
+#define ID_LOGIN_REMOTE_USER             ((LONG)0x00041004L)
+
+//
+// MessageId: ID_LOGIN_REMOTE_HOST
+//
+// MessageText:
+//
+// %1 からログインしました。%0
+//
+#define ID_LOGIN_REMOTE_HOST             ((LONG)0x00041005L)
 
 //
 // MessageId: ERROR_EXCEPTION
 //
 // MessageText:
 //
-// %1!hs!%0
+// %1!hs!
 //
 #define ERROR_EXCEPTION                  ((LONG)0x80041000L)
 

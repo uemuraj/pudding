@@ -49,7 +49,7 @@ public:
 
 	~WindowClass() noexcept
 	{
-		// アプリケーション終了時、自動的に登録解除されるため何もしない
+		// アプリケーション終了時、自動的にウィンドウクラスの登録は解除されるため何もしない
 	}
 
 	HWND NewInstance(HWND hWndParent, int X = CW_USEDEFAULT, int Y = 0, int nWidth = CW_USEDEFAULT, int nHeight = 0) const
@@ -77,64 +77,5 @@ private:
 		}
 
 		return atom;
-	}
-};
-
-
-//
-// TODO: 以下の関数は、別のヘッダーに移動する
-//
-
-#include <lmcons.h>
-
-inline POINT GetCursorPos() noexcept
-{
-	POINT pt;
-	::GetCursorPos(&pt);
-	return pt;
-}
-
-class GetCurrentUserName
-{
-	wchar_t m_data[UNLEN + 1];
-
-public:
-	GetCurrentUserName() : m_data{}
-	{
-		DWORD size = __crt_countof(m_data);
-
-		if (!::GetUserNameW(m_data, &size))
-		{
-			throw std::system_error(::GetLastError(), std::system_category(), "GetUserNameW()");
-		}
-	}
-
-	operator const wchar_t * () const
-	{
-		return m_data;
-	}
-};
-
-
-HINSTANCE GetInstance();
-
-
-class MessageResource
-{
-	wchar_t * m_data;
-
-public:
-	MessageResource(LONG id, ...);
-	~MessageResource();
-
-	MessageResource(const MessageResource &) = delete;
-	MessageResource & operator = (const MessageResource &) = delete;
-
-	MessageResource(MessageResource &&) = default;
-	MessageResource & operator = (MessageResource &&) = default;
-
-	operator const wchar_t * ()
-	{
-		return m_data ? m_data : L"null";
 	}
 };

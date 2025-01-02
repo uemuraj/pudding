@@ -1,27 +1,32 @@
 #include "pudding.h"
 #include "winmain.h"
-#include "session.h"
+#include "utility.h"
 
 #include "resource.h"
 #include "messages.h"
 
-using namespace wts;
 
-PuddingWindow::PuddingWindow(HWND hWnd, CREATESTRUCT * ps) : m_notifyIcon1(hWnd, WM_TRAYICON, ID_TRAYICON1)
+MessageResource CreateStatusMessage(const CurrentSession & session)
 {
-	m_notifyIcon1.AddItem(IDCLOSE, MessageResource(ID_MENU_EXIT, VS_TARGETNAME));
-
-	if (IsRemoteSession())
+	switch (session.ProtocolType())
 	{
-		Client client;
+	case 0:
+		return MessageResource(ID_STATUS_CONSOLE, (const wchar_t *) GetCurrentUserName());
 
-		m_notifyIcon1.Show(::LoadIconW(nullptr, IDI_INFORMATION), MessageResource(ID_TRAYICON_TIP, client.UserName()));
+	case 2:
+		if (auto userName = session.ClientUserName(); *userName)
+		{
+			return MessageResource(ID_STATUS_REMOTE_USER, userName);
+		}
+		if (auto hostName = session.ClientHostName(); *hostName)
+		{
+			return MessageResource(ID_STATUS_REMOTE_HOST, hostName);
+		}
 	}
-	else
-	{
-		m_notifyIcon1.Show(::LoadIconW(nullptr, IDI_APPLICATION), MessageResource(ID_TRAYICON_TIP, (const wchar_t *) GetCurrentUserName()));
-	}
+
+	throw std::runtime_error(__FUNCTION__ ": unknown protocol type");
 }
+
 
 LRESULT PuddingWindow::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -33,11 +38,11 @@ LRESULT PuddingWindow::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lP
 	switch (uMsg)
 	{
 	case WM_CREATE:
-		mainWindow = new PuddingWindow(hWnd, (CREATESTRUCT *) lParam);
+		mainWindow = new PuddingWindow(hWnd);
 		return true;
 
 	case WM_DESTROY:
-		::PostQuitMessage(0);
+		mainWindow->OnDestroy(hWnd);
 		return 0;
 
 	case WM_NCDESTROY:
@@ -51,7 +56,18 @@ LRESULT PuddingWindow::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lP
 		}
 		catch (const std::exception & e)
 		{
-			::OutputDebugStringA(e.what());
+			::OutputDebugStringW(MessageResource(ERROR_EXCEPTION, e.what()));
+		}
+		break;
+
+	case WM_WTSSESSION_CHANGE:
+		try
+		{
+			return mainWindow->OnSession(hWnd, uMsg, (DWORD) wParam, (DWORD) lParam);
+		}
+		catch (const std::exception & e)
+		{
+			::OutputDebugStringW(MessageResource(ERROR_EXCEPTION, e.what()));
 		}
 		break;
 
@@ -62,12 +78,31 @@ LRESULT PuddingWindow::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lP
 		}
 		catch (const std::exception & e)
 		{
-			::OutputDebugStringA(e.what());
+			::OutputDebugStringW(MessageResource(ERROR_EXCEPTION, e.what()));
 		}
 		break;
 	}
 
 	return ::DefWindowProcW(hWnd, uMsg, wParam, lParam);
+}
+
+PuddingWindow::PuddingWindow(HWND hWnd) : m_trayIcon1(hWnd, WM_TRAYICON, ID_TRAYICON1)
+{
+	m_trayIcon1.AddItem(IDCLOSE, MessageResource(ID_MENU_EXIT, VS_TARGETNAME));
+
+	m_trayIcon1.Show(::LoadIconW(nullptr, IDI_INFORMATION), CreateStatusMessage(m_session));
+
+	if (!::WTSRegisterSessionNotification(hWnd, NOTIFY_FOR_THIS_SESSION))
+	{
+		throw std::system_error(::GetLastError(), std::system_category(), "WTSRegisterSessionNotification()");
+	}
+}
+
+LRESULT PuddingWindow::OnDestroy(HWND hWnd) noexcept
+{
+	::WTSUnRegisterSessionNotification(hWnd);
+	::PostQuitMessage(0);
+	return 0;
 }
 
 LRESULT PuddingWindow::OnCommand(HWND hWnd, WORD wID, WORD wCode, HWND hWndControl)
@@ -82,14 +117,53 @@ LRESULT PuddingWindow::OnCommand(HWND hWnd, WORD wID, WORD wCode, HWND hWndContr
 	return 0;
 }
 
-LRESULT PuddingWindow::OnTrayIcon(HWND hWnd, UINT /*dummy*/, DWORD dwID, DWORD dwMsg)
+LRESULT PuddingWindow::OnSession(HWND hWnd, UINT, DWORD dwCode, DWORD dwID)
+{
+	if (dwID == m_session.SessionId())
+	{
+		switch (dwCode)
+		{
+		case WTS_CONSOLE_CONNECT:
+			::OutputDebugStringW(L"WTS_CONSOLE_CONNECT\r\n");
+			break;
+		case WTS_CONSOLE_DISCONNECT:
+			::OutputDebugStringW(L"WTS_CONSOLE_DISCONNECT\r\n");
+			break;
+		case WTS_REMOTE_CONNECT:
+			::OutputDebugStringW(L"WTS_REMOTE_CONNECT\r\n");
+			break;
+		case WTS_REMOTE_DISCONNECT:
+			::OutputDebugStringW(L"WTS_REMOTE_DISCONNECT\r\n");
+			break;
+		case WTS_SESSION_LOGON:
+			::OutputDebugStringW(L"WTS_SESSION_LOGON\r\n");
+			break;
+		case WTS_SESSION_LOGOFF:
+			::OutputDebugStringW(L"WTS_SESSION_LOGOFF\r\n");
+			break;
+		case WTS_SESSION_LOCK:
+			::OutputDebugStringW(L"WTS_SESSION_LOCK\r\n");
+			break;
+		case WTS_SESSION_UNLOCK:
+			::OutputDebugStringW(L"WTS_SESSION_UNLOCK\r\n");
+			break;
+		case WTS_SESSION_REMOTE_CONTROL:
+			::OutputDebugStringW(L"WTS_SESSION_REMOTE_CONTROL\r\n");
+			break;
+		}
+	}
+
+	return 0;
+}
+
+LRESULT PuddingWindow::OnTrayIcon(HWND hWnd, UINT, DWORD dwID, DWORD dwMsg)
 {
 	switch (dwID)
 	{
 	case ID_TRAYICON1:
 		if (dwMsg == WM_RBUTTONUP)
 		{
-			m_notifyIcon1.Popup(hWnd, GetCursorPos());
+			m_trayIcon1.Popup(hWnd, GetCurrentCursorPos());
 		}
 		break;
 	}

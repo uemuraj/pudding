@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Windows.h>
+#include <wtsapi32.h>
 #include <shellapi.h>
 #include <system_error>
 
@@ -75,20 +76,92 @@ public:
 };
 
 
+class CurrentSessionInformation
+{
+	void * m_buff;
+	DWORD m_size;
+
+public:
+	CurrentSessionInformation(WTS_INFO_CLASS infoClass) : m_buff(nullptr), m_size(0)
+	{
+		if (!::WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, WTS_CURRENT_SESSION, infoClass, (LPWSTR *) &m_buff, &m_size))
+		{
+			throw std::system_error(::GetLastError(), std::system_category(), "WTSQuerySessionInformation()");
+		}
+	}
+
+	~CurrentSessionInformation()
+	{
+		::WTSFreeMemory(m_buff); // !!!
+	}
+
+	operator unsigned long() const
+	{
+		return *(unsigned long *) m_buff;
+	}
+
+	operator unsigned short() const
+	{
+		return *(unsigned short *) m_buff;
+	}
+
+	const WTSCLIENTW & GetClient() const
+	{
+		return *(WTSCLIENTW *) m_buff;
+	}
+};
+
+
+class CurrentSession : CurrentSessionInformation
+{
+	unsigned long m_sessionId;
+
+public:
+	CurrentSession() : CurrentSessionInformation(WTSClientInfo), m_sessionId(CurrentSessionInformation(WTSSessionId))
+	{}
+
+	~CurrentSession() noexcept
+	{}
+
+	unsigned long SessionId() const noexcept
+	{
+		return m_sessionId;
+	}
+
+	unsigned short ProtocolType() const noexcept
+	{
+		return CurrentSessionInformation(WTSClientProtocolType);
+	}
+
+	const wchar_t * ClientHostName() const noexcept
+	{
+		return GetClient().ClientName;
+	}
+
+	const wchar_t * ClientUserName() const noexcept
+	{
+		return GetClient().UserName;
+	}
+};
+
+
 class PuddingWindow
 {
 	static const UINT WM_TRAYICON = (WM_USER + 1);
 	static const UINT ID_TRAYICON1 = 1001;
 
-	NotifyIcon m_notifyIcon1;
+	NotifyIcon m_trayIcon1;
+	CurrentSession m_session;
 
 public:
-	PuddingWindow(HWND hWnd, CREATESTRUCT * ps);
+	PuddingWindow(HWND hWnd);
 	~PuddingWindow() noexcept = default;
 
 	static LRESULT WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 private:
+	LRESULT OnDestroy(HWND hWnd) noexcept;
 	LRESULT OnCommand(HWND hWnd, WORD wID, WORD wCode, HWND hWndControl);
-	LRESULT OnTrayIcon(HWND hWnd, UINT /*dummy*/, DWORD dwID, DWORD dwMsg);
+	LRESULT OnSession(HWND hWnd, UINT, DWORD dwCode, DWORD dwID);
+	LRESULT OnTrayIcon(HWND hWnd, UINT, DWORD dwID, DWORD dwMsg);
 };

@@ -88,7 +88,7 @@ LRESULT PuddingWindow::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lP
 
 PuddingWindow::PuddingWindow(HWND hWnd) : m_trayIcon1(hWnd, WM_TRAYICON, ID_TRAYICON1)
 {
-	m_trayIcon1.AddItem(IDCLOSE, MessageResource(ID_MENU_EXIT, VS_TARGETNAME));
+	m_trayIcon1.AddItem(IDCLOSE, MessageResource(ID_MENU_EXIT, VS_TARGETNAMEW));
 
 	m_trayIcon1.Show(::LoadIconW(nullptr, IDI_INFORMATION), CreateStatusMessage(m_session));
 
@@ -178,7 +178,7 @@ namespace
 	{
 		// WNDCLASSEXW 構造体のメンバーを何も設定せずに、非表示でメッセージ処理専用のウィンドウを作成する
 
-		WindowClass<VS_TARGETNAME> windowClass{ hInstance, &PuddingWindow::WindowProc };
+		WindowClass<VS_TARGETNAMEW> windowClass{ hInstance, &PuddingWindow::WindowProc };
 
 		return windowClass.NewInstance(HWND_MESSAGE);
 	}

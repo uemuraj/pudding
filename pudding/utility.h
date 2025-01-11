@@ -2,6 +2,8 @@
 
 #include <Windows.h>
 #include <shlwapi.h>
+
+#include <string>
 #include <utility>
 
 HINSTANCE GetInstance();
@@ -23,20 +25,17 @@ public:
 		std::swap(m_data, other.m_data);
 	}
 
-	MessageResource(const MessageResource & other) noexcept
-	{
-		m_data = ::StrDupW(other.m_data);
-	}
-
 	MessageResource & operator=(MessageResource && other) noexcept
 	{
 		std::swap(m_data, other.m_data);
 	}
 
-	MessageResource & operator=(const MessageResource & other) noexcept
+	MessageResource(const MessageResource & other) noexcept
 	{
 		m_data = ::StrDupW(other.m_data);
 	}
+
+	MessageResource & operator=(const MessageResource & other) noexcept;
 
 	~MessageResource() noexcept
 	{
@@ -63,5 +62,16 @@ struct GetCurrentCursorPos : POINT
 	GetCurrentCursorPos() noexcept : POINT{}
 	{
 		::GetCursorPos(this);
+	}
+};
+
+struct GetCurrentModuleFileName : std::wstring
+{
+	GetCurrentModuleFileName();
+	~GetCurrentModuleFileName() = default;
+
+	operator const wchar_t * () const
+	{
+		return c_str();
 	}
 };

@@ -23,6 +23,18 @@ MessageResource::MessageResource(LONG id, ...) noexcept
 	va_end(args);
 }
 
+MessageResource & MessageResource::operator=(const MessageResource & other) noexcept
+{
+	if (this != &other)
+	{
+		::LocalFree(m_data);
+
+		m_data = ::StrDupW(other.m_data);
+	}
+
+	return *this;
+}
+
 GetCurrentUserName::GetCurrentUserName() : m_data{}
 {
 	DWORD size = __crt_countof(m_data);
@@ -30,5 +42,31 @@ GetCurrentUserName::GetCurrentUserName() : m_data{}
 	if (!::GetUserNameW(m_data, &size))
 	{
 		throw std::system_error(::GetLastError(), std::system_category(), "GetUserNameW()");
+	}
+}
+
+GetCurrentModuleFileName::GetCurrentModuleFileName() : std::wstring(63, L'\0')
+{
+	for (;;)
+	{
+		::SetLastError(ERROR_SUCCESS);
+
+		auto count = ::GetModuleFileNameW(nullptr, data(), static_cast<DWORD>(size() + 1));
+
+		auto error = ::GetLastError();
+
+		if (error == ERROR_INSUFFICIENT_BUFFER)
+		{
+			resize((size_t) count + MAX_PATH);
+			continue;
+		}
+
+		if (error == ERROR_SUCCESS)
+		{
+			resize(count);
+			return;
+		}
+
+		throw std::system_error(error, std::system_category(), "GetModuleFileNameW()");
 	}
 }

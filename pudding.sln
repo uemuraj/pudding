@@ -1,9 +1,14 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.12.35527.113 d17.12
+VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pudding", "pudding\pudding.vcxproj", "{B963B510-5D81-42A6-8590-2C5D113004EA}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pudding-test", "pudding-test\pudding-test.vcxproj", "{F265740A-CAB8-4633-B75E-74B5AC91ABB1}"
+	ProjectSection(ProjectDependencies) = postProject
+		{B963B510-5D81-42A6-8590-2C5D113004EA} = {B963B510-5D81-42A6-8590-2C5D113004EA}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +26,14 @@ Global
 		{B963B510-5D81-42A6-8590-2C5D113004EA}.Release|x64.Build.0 = Release|x64
 		{B963B510-5D81-42A6-8590-2C5D113004EA}.Release|x86.ActiveCfg = Release|Win32
 		{B963B510-5D81-42A6-8590-2C5D113004EA}.Release|x86.Build.0 = Release|Win32
+		{F265740A-CAB8-4633-B75E-74B5AC91ABB1}.Debug|x64.ActiveCfg = Debug|x64
+		{F265740A-CAB8-4633-B75E-74B5AC91ABB1}.Debug|x64.Build.0 = Debug|x64
+		{F265740A-CAB8-4633-B75E-74B5AC91ABB1}.Debug|x86.ActiveCfg = Debug|Win32
+		{F265740A-CAB8-4633-B75E-74B5AC91ABB1}.Debug|x86.Build.0 = Debug|Win32
+		{F265740A-CAB8-4633-B75E-74B5AC91ABB1}.Release|x64.ActiveCfg = Release|x64
+		{F265740A-CAB8-4633-B75E-74B5AC91ABB1}.Release|x64.Build.0 = Release|x64
+		{F265740A-CAB8-4633-B75E-74B5AC91ABB1}.Release|x86.ActiveCfg = Release|Win32
+		{F265740A-CAB8-4633-B75E-74B5AC91ABB1}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

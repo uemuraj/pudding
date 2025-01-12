@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 
+
 HINSTANCE GetInstance();
 
 class MessageResource

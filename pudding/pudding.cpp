@@ -5,8 +5,11 @@
 #include "resource.h"
 #include "messages.h"
 
+constexpr UINT WM_TRAYICON = (WM_USER + 1);
+constexpr UINT ID_TRAYICON1 = 1001;
 
-MessageResource CreateStatusMessage(const CurrentSession & session)
+
+static MessageResource CreateStatusMessage(const CurrentSession & session)
 {
 	switch (session.ProtocolType())
 	{
@@ -121,6 +124,8 @@ LRESULT PuddingWindow::OnSession(HWND hWnd, UINT, DWORD dwCode, DWORD dwID)
 {
 	if (dwID == m_session.SessionId())
 	{
+		auto profile = LoadProfile();
+
 		switch (dwCode)
 		{
 		case WTS_CONSOLE_CONNECT:

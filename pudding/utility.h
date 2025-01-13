@@ -5,6 +5,7 @@
 
 #include <string>
 #include <utility>
+#include <unordered_map>
 
 
 HINSTANCE GetInstance();
@@ -76,3 +77,23 @@ struct GetCurrentModuleFileName : std::wstring
 		return c_str();
 	}
 };
+
+using Section = std::unordered_map<std::wstring, std::wstring>;
+
+using Profile = std::unordered_map<std::wstring, Section>;
+
+Profile LoadProfile(const std::wstring & path);
+
+inline decltype(auto) LoadProfile()
+{
+	auto path = GetCurrentModuleFileName();
+
+	if (auto pos = path.rfind(L'.'); pos != std::wstring::npos)
+	{
+		path.resize(pos);
+	}
+
+	path += L".ini";
+
+	return LoadProfile(path);
+}

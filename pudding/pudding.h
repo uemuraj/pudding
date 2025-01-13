@@ -147,9 +147,6 @@ public:
 
 class PuddingWindow
 {
-	static const UINT WM_TRAYICON = (WM_USER + 1);
-	static const UINT ID_TRAYICON1 = 1001;
-
 	NotifyIcon m_trayIcon1;
 	CurrentSession m_session;
 

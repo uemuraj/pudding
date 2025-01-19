@@ -139,11 +139,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="command.cpp" />
+    <ClCompile Include="profile.cpp" />
     <ClCompile Include="pudding.cpp" />
     <ClCompile Include="utility.cpp" />
     <ClCompile Include="winmain.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="command.h" />
+    <ClInclude Include="profile.h" />
     <ClInclude Include="pudding.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="utility.h" />

@@ -4,6 +4,8 @@
     <ClCompile Include="winmain.cpp" />
     <ClCompile Include="pudding.cpp" />
     <ClCompile Include="utility.cpp" />
+    <ClCompile Include="command.cpp" />
+    <ClCompile Include="profile.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="winmain.h" />
@@ -12,6 +14,8 @@
       <Filter>resource</Filter>
     </ClInclude>
     <ClInclude Include="utility.h" />
+    <ClInclude Include="command.h" />
+    <ClInclude Include="profile.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="resource">

@@ -124,8 +124,6 @@ LRESULT PuddingWindow::OnSession(HWND hWnd, UINT, DWORD dwCode, DWORD dwID)
 {
 	if (dwID == m_session.SessionId())
 	{
-		auto profile = LoadProfile();
-
 		switch (dwCode)
 		{
 		case WTS_CONSOLE_CONNECT:

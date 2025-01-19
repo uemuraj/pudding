@@ -4,7 +4,10 @@
 
 #include "pch.h"
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <comdef.h>
+
 #include <locale>
 #include <system_error>
 
@@ -31,4 +34,23 @@ int main(int argc, char ** argv)
 	::testing::InitGoogleTest(&argc, argv);
 	::testing::AddGlobalTestEnvironment(new WindowsEnvironment);
 	return RUN_ALL_TESTS();
+}
+
+
+void PrintTo(const std::wstring & str, std::ostream & os)
+{
+	std::string buff;
+
+	for (auto ch : str)
+	{
+		buff.resize(MB_CUR_MAX);
+
+#pragma warning(suppress: 4996)
+		if (int size = wctomb(buff.data(), ch); size > 0)
+		{
+			buff.resize(size);
+
+			os << buff;
+		}
+	}
 }

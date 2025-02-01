@@ -6,6 +6,8 @@
     <ClCompile Include="utility.cpp" />
     <ClCompile Include="command.cpp" />
     <ClCompile Include="profile.cpp" />
+    <ClCompile Include="dwatch.cpp" />
+    <ClCompile Include="thread.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="winmain.h" />
@@ -16,6 +18,8 @@
     <ClInclude Include="utility.h" />
     <ClInclude Include="command.h" />
     <ClInclude Include="profile.h" />
+    <ClInclude Include="dwatch.h" />
+    <ClInclude Include="thread.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="resource">

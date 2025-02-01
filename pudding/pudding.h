@@ -5,6 +5,8 @@
 #include <shellapi.h>
 #include <system_error>
 
+#include "dwatch.h"
+#include "profile.h"
 
 class PopupMenu
 {
@@ -82,6 +84,10 @@ class CurrentSessionInformation
 	DWORD m_size;
 
 public:
+	CurrentSessionInformation(const CurrentSessionInformation &) = delete;
+
+	CurrentSessionInformation & operator=(const CurrentSessionInformation &) = delete;
+
 	CurrentSessionInformation(WTS_INFO_CLASS infoClass) : m_buff(nullptr), m_size(0)
 	{
 		if (!::WTSQuerySessionInformation(WTS_CURRENT_SERVER_HANDLE, WTS_CURRENT_SESSION, infoClass, (LPWSTR *) &m_buff, &m_size))
@@ -90,7 +96,7 @@ public:
 		}
 	}
 
-	~CurrentSessionInformation()
+	~CurrentSessionInformation() noexcept
 	{
 		::WTSFreeMemory(m_buff); // !!!
 	}
@@ -149,6 +155,9 @@ class PuddingWindow
 {
 	NotifyIcon m_trayIcon1;
 	CurrentSession m_session;
+	DirectoryWatcher m_watcher;
+	std::wstring m_profileName;
+	std::unique_ptr<Profile> m_profileData;
 
 public:
 	PuddingWindow(HWND hWnd);
@@ -161,4 +170,6 @@ private:
 	LRESULT OnCommand(HWND hWnd, WORD wID, WORD wCode, HWND hWndControl);
 	LRESULT OnSession(HWND hWnd, UINT, DWORD dwCode, DWORD dwID);
 	LRESULT OnTrayIcon(HWND hWnd, UINT, DWORD dwID, DWORD dwMsg);
+
+	void WatchUpdate(std::wstring_view file, FileAction action);
 };

@@ -111,11 +111,65 @@
 #define ID_LOGIN_REMOTE_HOST             ((LONG)0x00041005L)
 
 //
-// MessageId: ERROR_EXCEPTION
+// MessageId: ID_WATCH_ADD
+//
+// MessageText:
+//
+// ファイル %1!.*s! が追加されました。
+//
+#define ID_WATCH_ADD                     ((LONG)0x00041100L)
+
+//
+// MessageId: ID_WATCH_REMOVE
+//
+// MessageText:
+//
+// ファイル %1!.*s! が削除されました。
+//
+#define ID_WATCH_REMOVE                  ((LONG)0x00041101L)
+
+//
+// MessageId: ID_WATCH_MODIFY
+//
+// MessageText:
+//
+// ファイル %1!.*s! が変更されました。
+//
+#define ID_WATCH_MODIFY                  ((LONG)0x00041102L)
+
+//
+// MessageId: ID_WATCH_RENAME_OLD
+//
+// MessageText:
+//
+// ファイル %1!.*s! の名前が変更されました。
+//
+#define ID_WATCH_RENAME_OLD              ((LONG)0x00041103L)
+
+//
+// MessageId: ID_WATCH_RENAME_NEW
+//
+// MessageText:
+//
+// ファイル %1!.*s! へ名前が変更されました。
+//
+#define ID_WATCH_RENAME_NEW              ((LONG)0x00041104L)
+
+//
+// MessageId: ERROR_STD_EXCEPTION
 //
 // MessageText:
 //
 // %1!hs!
 //
-#define ERROR_EXCEPTION                  ((LONG)0x80041000L)
+#define ERROR_STD_EXCEPTION              ((LONG)0x80041000L)
+
+//
+// MessageId: ERROR_SYS_EXCEPTION
+//
+// MessageText:
+//
+// %1!hs! (%2!#08x!)
+//
+#define ERROR_SYS_EXCEPTION              ((LONG)0x80041001L)
 

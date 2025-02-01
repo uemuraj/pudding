@@ -2,40 +2,41 @@
 #include "utility.h"
 
 #include <Windows.h>
+#include <stdexcept>
 #include <vector>
 
 static std::vector<wchar_t> LoadSectionNames(const wchar_t * file)
 {
 	std::vector<wchar_t> buff(8);
 
-	for (auto nsize = static_cast<DWORD>(buff.size()); nsize <= (32 * 1024); nsize += 1024)
+	for (auto nsize = (DWORD) buff.size(); nsize <= (32 * 1024); nsize += 1024)
 	{
 		buff.resize(nsize);
 
 		if (::GetPrivateProfileSectionNamesW(buff.data(), nsize, file) < (nsize - 2))
 		{
-			break;
+			return buff;
 		}
 	}
 
-	return buff;
+	throw std::overflow_error("Buffer overflow while loading section names");
 }
 
 static std::vector<wchar_t> LoadSectionData(const wchar_t * file, const wchar_t * name)
 {
 	std::vector<wchar_t> buff(8);
 
-	for (auto nsize = static_cast<DWORD>(buff.size()); nsize <= (32 * 1024); nsize += 1024)
+	for (auto nsize = (DWORD) buff.size(); nsize <= (32 * 1024); nsize += 1024)
 	{
 		buff.resize(nsize);
 
 		if (::GetPrivateProfileSectionW(name, buff.data(), nsize, file) < (nsize - 2))
 		{
-			break;
+			return buff;
 		}
 	}
 
-	return buff;
+	throw std::overflow_error("Buffer overflow while loading section names");
 }
 
 std::unique_ptr<Profile> LoadProfile(const std::wstring & file)
@@ -64,14 +65,7 @@ std::unique_ptr<Profile> LoadProfile(const std::wstring & file)
 
 std::unique_ptr<Profile> LoadProfile()
 {
-	auto file = GetCurrentModuleFileName();
-
-	if (auto pos = file.rfind(L'.'); pos != std::wstring::npos)
-	{
-		file.resize(pos);
-	}
-
-	file += L".ini";
+	auto file = GetCurrentModuleFileName().ReplaceExtension(L".ini");
 
 	return LoadProfile(file);
 }

@@ -53,35 +53,29 @@ LRESULT PuddingWindow::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lP
 		return 0;
 
 	case WM_COMMAND:
-		try
-		{
-			return mainWindow->OnCommand(hWnd, LOWORD(wParam), HIWORD(wParam), (HWND) lParam);
-		}
-		catch (const std::exception & e)
-		{
-			::OutputDebugStringW(MessageResource(ERROR_EXCEPTION, e.what()));
-		}
-		break;
-
 	case WM_WTSSESSION_CHANGE:
-		try
-		{
-			return mainWindow->OnSession(hWnd, uMsg, (DWORD) wParam, (DWORD) lParam);
-		}
-		catch (const std::exception & e)
-		{
-			::OutputDebugStringW(MessageResource(ERROR_EXCEPTION, e.what()));
-		}
-		break;
-
 	case WM_TRAYICON:
 		try
 		{
-			return mainWindow->OnTrayIcon(hWnd, uMsg, (DWORD) wParam, (DWORD) lParam);
+			switch (uMsg)
+			{
+			case WM_COMMAND:
+				return mainWindow->OnCommand(hWnd, LOWORD(wParam), HIWORD(wParam), (HWND) lParam);
+
+			case WM_WTSSESSION_CHANGE:
+				return mainWindow->OnSession(hWnd, uMsg, (DWORD) wParam, (DWORD) lParam);
+
+			case WM_TRAYICON:
+				return mainWindow->OnTrayIcon(hWnd, uMsg, (DWORD) wParam, (DWORD) lParam);
+			}
+		}
+		catch (const std::system_error & e)
+		{
+			::OutputDebugStringW(MessageResource(ERROR_SYS_EXCEPTION, e.what(), e.code().value()));
 		}
 		catch (const std::exception & e)
 		{
-			::OutputDebugStringW(MessageResource(ERROR_EXCEPTION, e.what()));
+			::OutputDebugStringW(MessageResource(ERROR_STD_EXCEPTION, e.what()));
 		}
 		break;
 	}
@@ -92,13 +86,20 @@ LRESULT PuddingWindow::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lP
 PuddingWindow::PuddingWindow(HWND hWnd) : m_trayIcon1(hWnd, WM_TRAYICON, ID_TRAYICON1)
 {
 	m_trayIcon1.AddItem(IDCLOSE, MessageResource(ID_MENU_EXIT, VS_TARGETNAMEW));
-
 	m_trayIcon1.Show(::LoadIconW(nullptr, IDI_INFORMATION), CreateStatusMessage(m_session));
 
 	if (!::WTSRegisterSessionNotification(hWnd, NOTIFY_FOR_THIS_SESSION))
 	{
 		throw std::system_error(::GetLastError(), std::system_category(), "WTSRegisterSessionNotification()");
 	}
+
+	auto profileName = GetCurrentModuleFileName().ReplaceExtension(L".ini");
+	auto [path, file] = profileName.SplitPath();
+
+	m_profileName = profileName;
+	m_profileData = LoadProfile(m_profileName);
+
+	m_watcher = DirectoryWatcher([this](std::wstring_view name, FileAction action) { WatchUpdate(name, action); }, path.c_str());
 }
 
 LRESULT PuddingWindow::OnDestroy(HWND hWnd) noexcept
@@ -172,6 +173,28 @@ LRESULT PuddingWindow::OnTrayIcon(HWND hWnd, UINT, DWORD dwID, DWORD dwMsg)
 	}
 
 	return 0;
+}
+
+void PuddingWindow::WatchUpdate(std::wstring_view name, FileAction action)
+{
+	switch (action)
+	{
+	case FileAction::Added:
+		::OutputDebugStringW(MessageResource(ID_WATCH_ADD, name.size(), name.data()));
+		break;
+	case FileAction::Removed:
+		::OutputDebugStringW(MessageResource(ID_WATCH_REMOVE, name.size(), name.data()));
+		break;
+	case FileAction::Modified:
+		::OutputDebugStringW(MessageResource(ID_WATCH_MODIFY, name.size(), name.data()));
+		break;
+	case FileAction::RenamedOldName:
+		::OutputDebugStringW(MessageResource(ID_WATCH_RENAME_OLD, name.size(), name.data()));
+		break;
+	case FileAction::RenamedNewName:
+		::OutputDebugStringW(MessageResource(ID_WATCH_RENAME_NEW, name.size(), name.data()));
+		break;
+	}
 }
 
 

@@ -1,5 +1,6 @@
 #include "pch.h"
 #include <profile.h>
+#include <utility.h>
 
 TEST(ProfileTest, LoadProfile)
 {

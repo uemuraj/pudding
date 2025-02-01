@@ -56,10 +56,47 @@ Language=Japanese
 %1 からログインしました。%0
 .
 
+MessageId=0x1100
+SymbolicName=ID_WATCH_ADD
+Language=Japanese
+ファイル %1!.*s! が追加されました。
+.
+
+MessageId=
+SymbolicName=ID_WATCH_REMOVE
+Language=Japanese
+ファイル %1!.*s! が削除されました。
+.
+
+MessageId=
+SymbolicName=ID_WATCH_MODIFY
+Language=Japanese
+ファイル %1!.*s! が変更されました。
+.
+
+MessageId=
+SymbolicName=ID_WATCH_RENAME_OLD
+Language=Japanese
+ファイル %1!.*s! の名前が変更されました。
+.
+
+MessageId=
+SymbolicName=ID_WATCH_RENAME_NEW
+Language=Japanese
+ファイル %1!.*s! へ名前が変更されました。
+.
+
+
 MessageId=0x1000
 Severity=SEVERITY_ERROR
 Facility=FACILITY_ITF
-SymbolicName=ERROR_EXCEPTION
+SymbolicName=ERROR_STD_EXCEPTION
 Language=Japanese
 %1!hs!
+.
+
+MessageId=
+SymbolicName=ERROR_SYS_EXCEPTION
+Language=Japanese
+%1!hs! (%2!#08x!)
 .

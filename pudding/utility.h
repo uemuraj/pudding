@@ -67,4 +67,26 @@ struct GetCurrentModuleFileName : std::wstring
 	{
 		return c_str();
 	}
+
+	GetCurrentModuleFileName & ReplaceExtension(const wchar_t * ext)
+	{
+		if (auto pos = rfind(L'.'); pos != std::wstring::npos)
+		{
+			resize(pos);
+		}
+
+		append(ext);
+
+		return *this;
+	}
+
+	std::pair<std::wstring, std::wstring> SplitPath() const
+	{
+		if (auto pos = rfind(L'\\'); pos != std::wstring::npos)
+		{
+			return { { data(), pos ? pos : 1 }, c_str() + (pos + 1) };
+		}
+
+		return { {}, c_str() };
+	}
 };

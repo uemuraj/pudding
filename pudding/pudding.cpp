@@ -17,11 +17,11 @@ static MessageResource CreateStatusMessage(const CurrentSession & session)
 		return MessageResource(ID_STATUS_CONSOLE, (const wchar_t *) GetCurrentUserName());
 
 	case 2:
-		if (auto userName = session.ClientUserName(); *userName)
+		if (auto userName = session.ClientUserName(); *userName != L'\0')
 		{
 			return MessageResource(ID_STATUS_REMOTE_USER, userName);
 		}
-		if (auto hostName = session.ClientHostName(); *hostName)
+		if (auto hostName = session.ClientHostName(); *hostName != L'\0')
 		{
 			return MessageResource(ID_STATUS_REMOTE_HOST, hostName);
 		}
@@ -93,13 +93,14 @@ PuddingWindow::PuddingWindow(HWND hWnd) : m_trayIcon1(hWnd, WM_TRAYICON, ID_TRAY
 		throw std::system_error(::GetLastError(), std::system_category(), "WTSRegisterSessionNotification()");
 	}
 
-	auto profileName = GetCurrentModuleFileName().ReplaceExtension(L".ini");
-	auto [path, file] = profileName.SplitPath();
+	auto fileName = GetCurrentModuleFileName();
+	auto profileName = ReplaceExtension(fileName, L".ini");
+	auto profilePath = GetParentPath(fileName);
 
-	m_profileName = profileName;
+	m_profileName = std::move(profileName);
 	m_profileData = LoadProfile(m_profileName);
 
-	m_watcher = DirectoryWatcher([this](std::wstring_view name, FileAction action) { WatchUpdate(name, action); }, path.c_str());
+	m_watcher = DirectoryWatcher([this](std::wstring_view name, FileAction action) { WatchUpdate(name, action); }, profilePath.c_str());
 }
 
 LRESULT PuddingWindow::OnDestroy(HWND hWnd) noexcept
@@ -115,6 +116,21 @@ LRESULT PuddingWindow::OnCommand(HWND hWnd, WORD wID, WORD wCode, HWND hWndContr
 	{
 	case IDCLOSE:
 		::DestroyWindow(hWnd);
+		break;
+	}
+
+	return 0;
+}
+
+LRESULT PuddingWindow::OnTrayIcon(HWND hWnd, UINT, DWORD dwID, DWORD dwMsg)
+{
+	switch (dwID)
+	{
+	case ID_TRAYICON1:
+		if (dwMsg == WM_RBUTTONUP)
+		{
+			m_trayIcon1.Popup(hWnd, GetCurrentCursorPos());
+		}
 		break;
 	}
 
@@ -160,40 +176,33 @@ LRESULT PuddingWindow::OnSession(HWND hWnd, UINT, DWORD dwCode, DWORD dwID)
 	return 0;
 }
 
-LRESULT PuddingWindow::OnTrayIcon(HWND hWnd, UINT, DWORD dwID, DWORD dwMsg)
-{
-	switch (dwID)
-	{
-	case ID_TRAYICON1:
-		if (dwMsg == WM_RBUTTONUP)
-		{
-			m_trayIcon1.Popup(hWnd, GetCurrentCursorPos());
-		}
-		break;
-	}
-
-	return 0;
-}
-
 void PuddingWindow::WatchUpdate(std::wstring_view name, FileAction action)
 {
 	switch (action)
 	{
-	case FileAction::Added:
+	case Added:
 		::OutputDebugStringW(MessageResource(ID_WATCH_ADD, name.size(), name.data()));
 		break;
-	case FileAction::Removed:
+	case Removed:
 		::OutputDebugStringW(MessageResource(ID_WATCH_REMOVE, name.size(), name.data()));
 		break;
-	case FileAction::Modified:
+	case Modified:
 		::OutputDebugStringW(MessageResource(ID_WATCH_MODIFY, name.size(), name.data()));
 		break;
-	case FileAction::RenamedOldName:
+	case RenamedOldName:
 		::OutputDebugStringW(MessageResource(ID_WATCH_RENAME_OLD, name.size(), name.data()));
 		break;
-	case FileAction::RenamedNewName:
+	case RenamedNewName:
 		::OutputDebugStringW(MessageResource(ID_WATCH_RENAME_NEW, name.size(), name.data()));
 		break;
+	}
+
+	if (action == Added || action == Modified || action == RenamedNewName)
+	{
+		if (CompareFileName(name, m_profileName))
+		{
+			m_profileData = LoadProfile(m_profileName);
+		}
 	}
 }
 

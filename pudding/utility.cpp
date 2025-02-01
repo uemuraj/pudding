@@ -58,3 +58,23 @@ GetCurrentModuleFileName::GetCurrentModuleFileName() : std::wstring(63, L'\0')
 		throw std::system_error(error, std::system_category(), "GetModuleFileNameW()");
 	}
 }
+
+bool CompareFileName(std::wstring_view a, std::wstring_view b)
+{
+	if (auto pos = a.rfind(L'\\'); pos != std::wstring::npos)
+	{
+		a.remove_prefix(pos + 1);
+	}
+
+	if (auto pos = b.rfind(L'\\'); pos != std::wstring::npos)
+	{
+		b.remove_prefix(pos + 1);
+	}
+
+	if (a.size() == b.size())
+	{
+		return _wcsnicmp(a.data(), b.data(), a.size()) == 0;
+	}
+
+	return false;
+}

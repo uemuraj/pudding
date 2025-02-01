@@ -65,7 +65,7 @@ std::unique_ptr<Profile> LoadProfile(const std::wstring & file)
 
 std::unique_ptr<Profile> LoadProfile()
 {
-	auto file = GetCurrentModuleFileName().ReplaceExtension(L".ini");
+	auto fileName = GetCurrentModuleFileName();
 
-	return LoadProfile(file);
+	return LoadProfile(ReplaceExtension(fileName, L".ini"));
 }

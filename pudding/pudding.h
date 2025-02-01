@@ -156,6 +156,7 @@ class PuddingWindow
 	NotifyIcon m_trayIcon1;
 	CurrentSession m_session;
 	DirectoryWatcher m_watcher;
+
 	std::wstring m_profileName;
 	std::unique_ptr<Profile> m_profileData;
 

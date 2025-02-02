@@ -51,6 +51,20 @@ public:
 	}
 };
 
+class Semaphore
+{
+	HANDLE m_semaphore;
+
+public:
+	Semaphore(long initial, long maximum);
+	~Semaphore() noexcept;
+
+	operator HANDLE() const noexcept
+	{
+		return m_semaphore;
+	}
+};
+
 
 class ThreadPool
 {
@@ -95,6 +109,6 @@ public:
 	ThreadpoolEnviroment(bool runsLong, unsigned long minimum, unsigned long maximum);
 	~ThreadpoolEnviroment() noexcept;
 
-	PTP_WORK Submit(void * context, PTP_WORK_CALLBACK fnWork);
-	void WaitFor(PTP_WORK work) noexcept;
+	PTP_WORK SubmitWork(void * context, PTP_WORK_CALLBACK fnWork);
+	void WaitForWork(PTP_WORK work) noexcept;
 };

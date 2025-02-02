@@ -29,4 +29,8 @@ public:
 	~DirectoryWatcher() noexcept;
 
 	DirectoryWatcher & operator=(DirectoryWatcher && other) noexcept;
+
+	std::exception_ptr GetException() const noexcept;
 };
+
+inline unsigned long g_DirectoryWatcherThreadMax = 10;

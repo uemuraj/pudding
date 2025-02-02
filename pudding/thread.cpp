@@ -15,6 +15,19 @@ StopEvent::~StopEvent() noexcept
 	::CloseHandle(m_event);
 }
 
+Semaphore::Semaphore(long initial, long maximum) : m_semaphore(::CreateSemaphore(nullptr, initial, maximum, nullptr))
+{
+	if (!m_semaphore)
+	{
+		throw std::system_error(::GetLastError(), std::system_category(), "CreateSemaphore()");
+	}
+}
+
+Semaphore::~Semaphore() noexcept
+{
+	::CloseHandle(m_semaphore);
+}
+
 
 ThreadPool::ThreadPool(unsigned long minimum, unsigned long maximum) : m_pool(::CreateThreadpool(nullptr))
 {
@@ -55,8 +68,6 @@ ThreadpoolCleanupGroup::~ThreadpoolCleanupGroup() noexcept
 }
 
 
-// TODO: スレッドの最大数を超えないよう Submit 可能な数を制限する
-
 ThreadpoolEnviroment::ThreadpoolEnviroment(bool runsLong, unsigned long minimum, unsigned long maximum) : m_pool(minimum, maximum)
 {
 	::InitializeThreadpoolEnvironment(this);
@@ -76,7 +87,7 @@ ThreadpoolEnviroment::~ThreadpoolEnviroment() noexcept
 	::DestroyThreadpoolEnvironment(this);
 }
 
-PTP_WORK ThreadpoolEnviroment::Submit(void * context, PTP_WORK_CALLBACK fnWork)
+PTP_WORK ThreadpoolEnviroment::SubmitWork(void * context, PTP_WORK_CALLBACK fnWork)
 {
 	auto work = ::CreateThreadpoolWork(fnWork, context, this);
 
@@ -90,7 +101,7 @@ PTP_WORK ThreadpoolEnviroment::Submit(void * context, PTP_WORK_CALLBACK fnWork)
 	return work;
 }
 
-void ThreadpoolEnviroment::WaitFor(PTP_WORK work) noexcept
+void ThreadpoolEnviroment::WaitForWork(PTP_WORK work) noexcept
 {
 	::WaitForThreadpoolWorkCallbacks(work, true);
 

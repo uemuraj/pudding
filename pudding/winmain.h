@@ -13,7 +13,7 @@ protected:
 	~MainWindow() = default;
 
 public:
-	static const MainWindow & GetInstance(HINSTANCE hInstance, const wchar_t * szCmdLine);
+	static const MainWindow & GetInstance(HINSTANCE hInstance = nullptr, const wchar_t * szCmdLine = nullptr);
 
 	operator HWND() const
 	{

@@ -1,11 +1,12 @@
 #include "pudding.h"
 #include "winmain.h"
 #include "utility.h"
-
+#include "command.h"
 #include "resource.h"
 #include "messages.h"
 
-constexpr UINT WM_TRAYICON = (WM_USER + 1);
+constexpr UINT WM_RELOAD = (WM_USER + 1);
+constexpr UINT WM_TRAYICON = (WM_USER + 2);
 constexpr UINT ID_TRAYICON1 = 1001;
 
 
@@ -54,6 +55,7 @@ LRESULT PuddingWindow::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lP
 
 	case WM_COMMAND:
 	case WM_WTSSESSION_CHANGE:
+	case WM_RELOAD:
 	case WM_TRAYICON:
 		try
 		{
@@ -64,6 +66,9 @@ LRESULT PuddingWindow::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lP
 
 			case WM_WTSSESSION_CHANGE:
 				return mainWindow->OnSession(hWnd, uMsg, (DWORD) wParam, (DWORD) lParam);
+
+			case WM_RELOAD:
+				return mainWindow->OnReload(hWnd);
 
 			case WM_TRAYICON:
 				return mainWindow->OnTrayIcon(hWnd, uMsg, (DWORD) wParam, (DWORD) lParam);
@@ -100,13 +105,31 @@ PuddingWindow::PuddingWindow(HWND hWnd) : m_trayIcon1(hWnd, WM_TRAYICON, ID_TRAY
 	m_profileName = std::move(profileName);
 	m_profileData = LoadProfile(m_profileName);
 
-	m_watcher = DirectoryWatcher([this](std::wstring_view name, FileAction action) { WatchUpdate(name, action); }, profilePath.c_str());
+	m_watcher = DirectoryWatcher([this](std::wstring_view name, FileAction action) { WatchProfile(name, action); }, profilePath.c_str());
 }
 
 LRESULT PuddingWindow::OnDestroy(HWND hWnd) noexcept
 {
 	::WTSUnRegisterSessionNotification(hWnd);
+
 	::PostQuitMessage(0);
+
+	if (auto exception = m_watcher.GetException())
+	{
+		try
+		{
+			std::rethrow_exception(exception);
+		}
+		catch (const std::system_error & e)
+		{
+			::OutputDebugStringW(MessageResource(ERROR_SYS_EXCEPTION, e.what(), e.code().value()));
+		}
+		catch (const std::exception & e)
+		{
+			::OutputDebugStringW(MessageResource(ERROR_STD_EXCEPTION, e.what()));
+		}
+	}
+
 	return 0;
 }
 
@@ -137,47 +160,49 @@ LRESULT PuddingWindow::OnTrayIcon(HWND hWnd, UINT, DWORD dwID, DWORD dwMsg)
 	return 0;
 }
 
+
 LRESULT PuddingWindow::OnSession(HWND hWnd, UINT, DWORD dwCode, DWORD dwID)
 {
 	if (dwID == m_session.SessionId())
 	{
-		switch (dwCode)
-		{
-		case WTS_CONSOLE_CONNECT:
-			::OutputDebugStringW(L"WTS_CONSOLE_CONNECT\r\n");
-			break;
-		case WTS_CONSOLE_DISCONNECT:
-			::OutputDebugStringW(L"WTS_CONSOLE_DISCONNECT\r\n");
-			break;
-		case WTS_REMOTE_CONNECT:
-			::OutputDebugStringW(L"WTS_REMOTE_CONNECT\r\n");
-			break;
-		case WTS_REMOTE_DISCONNECT:
-			::OutputDebugStringW(L"WTS_REMOTE_DISCONNECT\r\n");
-			break;
-		case WTS_SESSION_LOGON:
-			::OutputDebugStringW(L"WTS_SESSION_LOGON\r\n");
-			break;
-		case WTS_SESSION_LOGOFF:
-			::OutputDebugStringW(L"WTS_SESSION_LOGOFF\r\n");
-			break;
-		case WTS_SESSION_LOCK:
-			::OutputDebugStringW(L"WTS_SESSION_LOCK\r\n");
-			break;
-		case WTS_SESSION_UNLOCK:
-			::OutputDebugStringW(L"WTS_SESSION_UNLOCK\r\n");
-			break;
-		case WTS_SESSION_REMOTE_CONTROL:
-			::OutputDebugStringW(L"WTS_SESSION_REMOTE_CONTROL\r\n");
-			break;
-		}
+		WatchSession(WTSSESSION_CHANGE(dwCode), dwCode);
 	}
+#if defined(_DEBUG)
+	::OutputDebugStringW(MessageResource(ID_SESSION_MSG, WTSSESSION_CHANGE(dwCode), dwCode, dwID));
+#endif
+	return 0;
+}
+
+void PuddingWindow::WatchSession(const wchar_t * szCode, DWORD dwCode)
+{
+	auto & section = m_profileData->operator[](szCode);
+
+	if (auto & value = section[L"CommandLine"]; !value.empty())
+	{
+		CommandLine commandLine(value.c_str());
+		commandLine.Execute();
+	}
+}
+
+
+LRESULT PuddingWindow::OnReload(HWND hWnd)
+{
+	m_profileData = LoadProfile(m_profileName);
 
 	return 0;
 }
 
-void PuddingWindow::WatchUpdate(std::wstring_view name, FileAction action)
+void PuddingWindow::WatchProfile(std::wstring_view name, FileAction action)
 {
+	if (action == Added || action == Modified || action == RenamedNewName)
+	{
+		if (CompareFileName(name, m_profileName))
+		{
+			::PostMessageW(MainWindow::GetInstance(), WM_RELOAD, 0, 0);
+		}
+	}
+
+#if defined(_DEBUG)
 	switch (action)
 	{
 	case Added:
@@ -196,14 +221,7 @@ void PuddingWindow::WatchUpdate(std::wstring_view name, FileAction action)
 		::OutputDebugStringW(MessageResource(ID_WATCH_RENAME_NEW, name.size(), name.data()));
 		break;
 	}
-
-	if (action == Added || action == Modified || action == RenamedNewName)
-	{
-		if (CompareFileName(name, m_profileName))
-		{
-			m_profileData = LoadProfile(m_profileName);
-		}
-	}
+#endif
 }
 
 

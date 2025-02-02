@@ -56,6 +56,12 @@ Language=Japanese
 %1 からログインしました。%0
 .
 
+MessageId=
+SymbolicName=ID_SESSION_MSG
+Language=Japanese
+%1(%2!d!) - Session %3!d!
+.
+
 MessageId=0x1100
 SymbolicName=ID_WATCH_ADD
 Language=Japanese
@@ -85,7 +91,6 @@ SymbolicName=ID_WATCH_RENAME_NEW
 Language=Japanese
 ファイル %1!.*s! へ名前が変更されました。
 .
-
 
 MessageId=0x1000
 Severity=SEVERITY_ERROR

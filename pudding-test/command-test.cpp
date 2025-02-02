@@ -1,11 +1,6 @@
 #include "pch.h"
 #include <command.h>
 
-//
-// * https://learn.microsoft.com/ja-jp/windows/win32/api/shellapi/nf-shellapi-commandlinetoargvw
-// * https://learn.microsoft.com/ja-jp/cpp/c-language/parsing-c-command-line-arguments?view=msvc-170
-//
-
 void PrintTo(const CommandLine & bar, std::ostream * os)
 {
 	*os << '[';
@@ -28,6 +23,12 @@ TEST(CommandLineTest, Empty)
 	EXPECT_STREQ(commandLine.File(), L"");
 	EXPECT_TRUE(commandLine.Parameters().empty());
 }
+
+
+//
+// * https://learn.microsoft.com/ja-jp/windows/win32/api/shellapi/nf-shellapi-commandlinetoargvw
+// * https://learn.microsoft.com/ja-jp/cpp/c-language/parsing-c-command-line-arguments?view=msvc-170
+//
 
 struct EscapedParametersTest : testing::TestWithParam<const wchar_t *>
 {
@@ -57,3 +58,16 @@ INSTANTIATE_TEST_CASE_P(Cases, EscapedParametersTest, testing::Values(
 	LR"(file a\\\\"b c" d e)",
 	LR"(file a"b"" c d)"
 ));
+
+
+TEST(CommandLineTest, ExecuteSuccess)
+{
+	CommandLine commandLine(L"cmd /c echo hello");
+	EXPECT_EQ(commandLine.Execute(), 0);
+}
+
+TEST(CommandLineTest, ExecuteError)
+{
+	CommandLine commandLine(L"cmd /c exit 1");
+	EXPECT_EQ(commandLine.Execute(), 1);
+}

@@ -169,8 +169,46 @@ public:
 private:
 	LRESULT OnDestroy(HWND hWnd) noexcept;
 	LRESULT OnCommand(HWND hWnd, WORD wID, WORD wCode, HWND hWndControl);
-	LRESULT OnSession(HWND hWnd, UINT, DWORD dwCode, DWORD dwID);
 	LRESULT OnTrayIcon(HWND hWnd, UINT, DWORD dwID, DWORD dwMsg);
+	LRESULT OnSession(HWND hWnd, UINT, DWORD dwCode, DWORD dwID);
+	LRESULT OnReload(HWND hWnd);
 
-	void WatchUpdate(std::wstring_view file, FileAction action);
+	void WatchSession(const wchar_t * szCode, DWORD dwCode);
+	void WatchProfile(std::wstring_view file, FileAction action);
 };
+
+inline const wchar_t * WTSSESSION_CHANGE(DWORD dwCode)
+{
+	switch (dwCode)
+	{
+	case WTS_CONSOLE_CONNECT:
+		return L"WTS_CONSOLE_CONNECT";
+
+	case WTS_CONSOLE_DISCONNECT:
+		return L"WTS_CONSOLE_DISCONNECT";
+
+	case WTS_REMOTE_CONNECT:
+		return L"WTS_REMOTE_CONNECT";
+
+	case WTS_REMOTE_DISCONNECT:
+		return L"WTS_REMOTE_DISCONNECT";
+
+	case WTS_SESSION_LOGON:
+		return L"WTS_SESSION_LOGON";
+
+	case WTS_SESSION_LOGOFF:
+		return L"WTS_SESSION_LOGOFF";
+
+	case WTS_SESSION_LOCK:
+		return L"WTS_SESSION_LOCK";
+
+	case WTS_SESSION_UNLOCK:
+		return L"WTS_SESSION_UNLOCK";
+
+	case WTS_SESSION_REMOTE_CONTROL:
+		return L"WTS_SESSION_REMOTE_CONTROL";
+
+	default:
+		return L"";
+	}
+}

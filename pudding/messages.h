@@ -111,6 +111,15 @@
 #define ID_LOGIN_REMOTE_HOST             ((LONG)0x00041005L)
 
 //
+// MessageId: ID_SESSION_MSG
+//
+// MessageText:
+//
+// %1(%2!d!) - Session %3!d!
+//
+#define ID_SESSION_MSG                   ((LONG)0x00041006L)
+
+//
 // MessageId: ID_WATCH_ADD
 //
 // MessageText:

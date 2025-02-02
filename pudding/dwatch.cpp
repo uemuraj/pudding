@@ -5,10 +5,32 @@
 #include <system_error>
 
 
-struct DirectoryWatcherThreadPool : ThreadpoolEnviroment
+class DirectoryWatcherThreadPool : ThreadpoolEnviroment
 {
-	DirectoryWatcherThreadPool() : ThreadpoolEnviroment(true, 1, 10)
+	Semaphore m_count;
+
+public:
+	DirectoryWatcherThreadPool(unsigned long maximum) : ThreadpoolEnviroment(true, 1, maximum), m_count(maximum, maximum)
 	{}
+
+	~DirectoryWatcherThreadPool() noexcept = default;
+
+	PTP_WORK Start(void * context, PTP_WORK_CALLBACK callback)
+	{
+		if (::WaitForSingleObject(m_count, 0) == WAIT_OBJECT_0)
+		{
+			return ThreadpoolEnviroment::SubmitWork(context, callback);
+		}
+
+		throw std::system_error(::GetLastError(), std::system_category(), "WaitForSingleObject()");
+	}
+
+	decltype(auto) Wait(PTP_WORK work) noexcept
+	{
+		ThreadpoolEnviroment::WaitForWork(work);
+
+		::ReleaseSemaphore(m_count, 1, nullptr);
+	}
 };
 
 static std::shared_ptr<DirectoryWatcherThreadPool> GetDirectoryWatcherThreadPool()
@@ -23,7 +45,7 @@ static std::shared_ptr<DirectoryWatcherThreadPool> GetDirectoryWatcherThreadPool
 
 	if (!threadPool)
 	{
-		threadPool = std::make_shared<DirectoryWatcherThreadPool>();
+		threadPool = std::make_shared<DirectoryWatcherThreadPool>(g_DirectoryWatcherThreadMax);
 
 		g_directoryWatcherThreadPool = threadPool;
 	}
@@ -65,7 +87,7 @@ class DirectoryChanges
 {
 	DirectoryHandle m_handle;
 	StopEvent m_complete;
-	StopEvent m_cancel;
+	StopEvent m_stop;
 
 	OVERLAPPED m_overlapped;
 	BYTE m_buff[64 * 1024];
@@ -74,16 +96,16 @@ public:
 	DirectoryChanges(const wchar_t * path) : m_handle(path), m_overlapped{ .hEvent = m_complete }, m_buff{}
 	{}
 
-	void Cancel() noexcept
+	void Stop() noexcept
 	{
-		::SetEvent(m_cancel);
+		::SetEvent(m_stop);
 	}
 
 	void Watch(FileActionCallback callback)
 	{
 		constexpr DWORD notifyFilter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_LAST_ACCESS | FILE_NOTIFY_CHANGE_CREATION | FILE_NOTIFY_CHANGE_SECURITY;
 
-		HANDLE handles[] = { m_complete, m_cancel };
+		HANDLE handles[] = { m_complete, m_stop };
 
 		while (::ReadDirectoryChangesW(m_handle, m_buff, _countof(m_buff), false, notifyFilter, nullptr, &m_overlapped, nullptr))
 		{
@@ -186,17 +208,21 @@ public:
 	DirectoryWatcherThreadWork(FileActionCallback callback, const wchar_t * path) : m_callback(callback), m_watcher(path)
 	{
 		m_pool = GetDirectoryWatcherThreadPool();
-		m_work = m_pool->Submit(this, [](PTP_CALLBACK_INSTANCE, PVOID context, PTP_WORK) { ((DirectoryWatcherThreadWork *) context)->Work(); });
+		m_work = m_pool->Start(this, [](PTP_CALLBACK_INSTANCE, PVOID context, PTP_WORK) { ((DirectoryWatcherThreadWork *) context)->Work(); });
 	}
 
 	~DirectoryWatcherThreadWork() noexcept
 	{
-		m_watcher.Cancel();
-		m_pool->WaitFor(m_work);
+		m_watcher.Stop();
+		m_pool->Wait(m_work);
+	}
+
+	std::exception_ptr GetException() const noexcept
+	{
+		return m_exception;
 	}
 
 private:
-
 	void Work()
 	{
 		try
@@ -226,4 +252,14 @@ DirectoryWatcher & DirectoryWatcher::operator=(DirectoryWatcher && other) noexce
 {
 	m_work = std::move(other.m_work);
 	return *this;
+}
+
+std::exception_ptr DirectoryWatcher::GetException() const noexcept
+{
+	if (m_work)
+	{
+		return m_work->GetException();
+	}
+
+	return {};
 }

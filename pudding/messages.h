@@ -165,6 +165,16 @@
 #define ID_WATCH_RENAME_NEW              ((LONG)0x00041104L)
 
 //
+// MessageId: ID_COMMAND_EXIT
+//
+// MessageText:
+//
+// %1 %2
+// コマンドは終了コード %3!d! で終了しました。
+//
+#define ID_COMMAND_EXIT                  ((LONG)0x00041200L)
+
+//
 // MessageId: ERROR_STD_EXCEPTION
 //
 // MessageText:

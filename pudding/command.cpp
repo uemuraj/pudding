@@ -1,9 +1,13 @@
 #include "command.h"
 
 #include <shellapi.h>
+#include <shlwapi.h>
+
 #include <algorithm>
+#include <memory>
 #include <utility>
 #include <system_error>
+
 
 CommandLine::CommandLine(const wchar_t * command) : m_argc(0), m_argv(nullptr)
 {
@@ -56,51 +60,6 @@ void CommandLine::Reset() noexcept
 	::LocalFree(m_argv);
 
 	m_argc = 0, m_argv = nullptr;
-}
-
-DWORD CommandLine::Execute(const wchar_t * directory, int show)
-{
-	auto parameters = EscapedParameters(*this);
-
-	SHELLEXECUTEINFOW info
-	{
-		.cbSize = sizeof(info),
-		.fMask = SEE_MASK_NOCLOSEPROCESS,
-		.lpFile = File(),
-		.lpParameters = parameters.c_str(),
-		.lpDirectory = directory,
-		.nShow = show
-	};
-
-	if (!::ShellExecuteExW(&info))
-	{
-		throw std::system_error(::GetLastError(), std::system_category(), "ShellExecuteExW()");
-	}
-
-	if (!info.hProcess)
-	{
-		return 0; // no process
-	}
-
-	try
-	{
-		::WaitForSingleObject(info.hProcess, INFINITE);
-
-		DWORD exitCode{};
-
-		if (!::GetExitCodeProcess(info.hProcess, &exitCode))
-		{
-			throw std::system_error(::GetLastError(), std::system_category(), "GetExitCodeProcess()");
-		}
-
-		::CloseHandle(info.hProcess);
-		return exitCode;
-	}
-	catch (...)
-	{
-		::CloseHandle(info.hProcess);
-		throw;
-	}
 }
 
 std::wstring EscapedParameters(const CommandLine & commandLine)
@@ -161,4 +120,98 @@ std::wstring EscapedParameters(const CommandLine & commandLine)
 	}
 
 	return parameters;
+}
+
+
+class ProcessHandle
+{
+	HANDLE m_handle;
+
+public:
+	ProcessHandle(HANDLE handle) noexcept : m_handle(handle)
+	{}
+
+	~ProcessHandle() noexcept
+	{
+		if (m_handle)
+		{
+			::CloseHandle(m_handle);
+		}
+	}
+
+	operator HANDLE() const noexcept
+	{
+		return m_handle;
+	}
+};
+
+struct ExecuteContext
+{
+	CommandLine commandLine;
+	ExecuteCallback callback;
+	ProcessHandle process;
+
+	void GetExitCode() const noexcept
+	{
+		DWORD exitCode{};
+
+		try
+		{
+			if (::WaitForSingleObject(process, INFINITE) != WAIT_OBJECT_0)
+			{
+				throw std::system_error(::GetLastError(), std::system_category(), "WaitForSingleObject()");
+			}
+
+			if (!::GetExitCodeProcess(process, &exitCode))
+			{
+				throw std::system_error(::GetLastError(), std::system_category(), "GetExitCodeProcess()");
+			}
+
+			callback(commandLine, exitCode, {});
+		}
+		catch (...)
+		{
+			callback(commandLine, exitCode, std::current_exception());
+		}
+	}
+};
+
+static void NTAPI ExecuteSimpleCallback(PTP_CALLBACK_INSTANCE, void * context)
+{
+	std::unique_ptr<ExecuteContext>((ExecuteContext *) context)->GetExitCode();
+}
+
+
+void ExecuteCommand(ExecuteCallback callback, CommandLine && commandLine, const wchar_t * directory, int show)
+{
+	auto parameters = EscapedParameters(commandLine);
+
+	SHELLEXECUTEINFOW info
+	{
+		.cbSize = sizeof(info),
+		.fMask = SEE_MASK_NOCLOSEPROCESS,
+		.lpFile = commandLine.File(),
+		.lpParameters = parameters.c_str(),
+		.lpDirectory = directory,
+		.nShow = show
+	};
+
+	if (!::ShellExecuteExW(&info))
+	{
+		throw std::system_error(::GetLastError(), std::system_category(), "ShellExecuteExW()");
+	}
+
+	if (!info.hProcess)
+	{
+		return callback(commandLine, 0, {});
+	}
+
+	auto context = std::make_unique<ExecuteContext>(std::move(commandLine), callback, info.hProcess);
+
+	if (!::TrySubmitThreadpoolCallback(ExecuteSimpleCallback, context.get(), nullptr))
+	{
+		throw std::system_error(::GetLastError(), std::system_category(), "TrySubmitThreadpoolCallback()");
+	}
+
+	context.release();
 }

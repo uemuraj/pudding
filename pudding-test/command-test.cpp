@@ -1,5 +1,6 @@
 #include "pch.h"
 #include <command.h>
+#include <future>
 
 void PrintTo(const CommandLine & bar, std::ostream * os)
 {
@@ -62,12 +63,28 @@ INSTANTIATE_TEST_CASE_P(Cases, EscapedParametersTest, testing::Values(
 
 TEST(CommandLineTest, ExecuteSuccess)
 {
-	CommandLine commandLine(L"cmd /c echo hello");
-	EXPECT_EQ(commandLine.Execute(), 0);
+	std::promise<DWORD> promise;
+
+	ExecuteCallback callback = [&promise](const CommandLine &, DWORD exitCode, std::exception_ptr)
+	{
+		promise.set_value(exitCode);
+	};
+
+	ExecuteCommand(callback, CommandLine(L"cmd /c echo hello"), nullptr, SW_HIDE);
+
+	EXPECT_EQ(promise.get_future().get(), 0);
 }
 
 TEST(CommandLineTest, ExecuteError)
 {
-	CommandLine commandLine(L"cmd /c exit 1");
-	EXPECT_EQ(commandLine.Execute(), 1);
+	std::promise<DWORD> promise;
+
+	ExecuteCallback callback = [&promise](const CommandLine &, DWORD exitCode, std::exception_ptr)
+	{
+		promise.set_value(exitCode);
+	};
+
+	ExecuteCommand(callback, CommandLine(L"cmd /c exit 1"), nullptr, SW_HIDE);
+
+	EXPECT_EQ(promise.get_future().get(), 1);
 }

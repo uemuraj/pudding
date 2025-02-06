@@ -179,8 +179,37 @@ void PuddingWindow::WatchSession(const wchar_t * szCode, DWORD dwCode)
 
 	if (auto & value = section[L"CommandLine"]; !value.empty())
 	{
+		ExecuteCallback callback = [](const CommandLine & commandLine, DWORD exitCode, std::exception_ptr exception)
+		{
+			::OutputDebugStringW(MessageResource(ID_COMMAND_EXIT, commandLine.File(), EscapedParameters(commandLine).c_str(), exitCode));
+
+			if (exception)
+			{
+				try
+				{
+					std::rethrow_exception(exception);
+				}
+				catch (const std::system_error & e)
+				{
+					::OutputDebugStringW(MessageResource(ERROR_SYS_EXCEPTION, e.what(), e.code().value()));
+				}
+				catch (const std::exception & e)
+				{
+					::OutputDebugStringW(MessageResource(ERROR_STD_EXCEPTION, e.what()));
+				}
+			}
+		};
+
 		CommandLine commandLine(value.c_str());
-		commandLine.Execute();
+
+		if (section.contains(L"WorkingDirectory"))
+		{
+			ExecuteCommand(callback, std::move(commandLine), section[L"WorkingDirectory"].c_str(), SW_SHOWMINNOACTIVE);
+		}
+		else
+		{
+			ExecuteCommand(callback, std::move(commandLine), nullptr, SW_SHOWMINNOACTIVE);
+		}
 	}
 }
 
@@ -201,7 +230,6 @@ void PuddingWindow::WatchProfile(std::wstring_view name, FileAction action)
 			::PostMessageW(MainWindow::GetInstance(), WM_RELOAD, 0, 0);
 		}
 	}
-
 #if defined(_DEBUG)
 	switch (action)
 	{

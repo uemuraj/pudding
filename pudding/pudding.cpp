@@ -160,7 +160,6 @@ LRESULT PuddingWindow::OnTrayIcon(HWND hWnd, UINT, DWORD dwID, DWORD dwMsg)
 	return 0;
 }
 
-
 LRESULT PuddingWindow::OnSession(HWND hWnd, UINT, DWORD dwCode, DWORD dwID)
 {
 	if (dwID == m_session.SessionId())
@@ -172,47 +171,6 @@ LRESULT PuddingWindow::OnSession(HWND hWnd, UINT, DWORD dwCode, DWORD dwID)
 #endif
 	return 0;
 }
-
-void PuddingWindow::WatchSession(const wchar_t * szCode, DWORD dwCode)
-{
-	auto & section = m_profileData->operator[](szCode);
-
-	if (auto & value = section[L"CommandLine"]; !value.empty())
-	{
-		ExecuteCallback callback = [](const CommandLine & commandLine, DWORD exitCode, std::exception_ptr exception)
-		{
-			::OutputDebugStringW(MessageResource(ID_COMMAND_EXIT, commandLine.File(), EscapedParameters(commandLine).c_str(), exitCode));
-
-			if (exception)
-			{
-				try
-				{
-					std::rethrow_exception(exception);
-				}
-				catch (const std::system_error & e)
-				{
-					::OutputDebugStringW(MessageResource(ERROR_SYS_EXCEPTION, e.what(), e.code().value()));
-				}
-				catch (const std::exception & e)
-				{
-					::OutputDebugStringW(MessageResource(ERROR_STD_EXCEPTION, e.what()));
-				}
-			}
-		};
-
-		CommandLine commandLine(value.c_str());
-
-		if (section.contains(L"WorkingDirectory"))
-		{
-			ExecuteCommand(callback, std::move(commandLine), section[L"WorkingDirectory"].c_str(), SW_SHOWMINNOACTIVE);
-		}
-		else
-		{
-			ExecuteCommand(callback, std::move(commandLine), nullptr, SW_SHOWMINNOACTIVE);
-		}
-	}
-}
-
 
 LRESULT PuddingWindow::OnReload(HWND hWnd)
 {
@@ -250,6 +208,44 @@ void PuddingWindow::WatchProfile(std::wstring_view name, FileAction action)
 		break;
 	}
 #endif
+}
+
+void PuddingWindow::WatchSession(const wchar_t * szCode, DWORD dwCode)
+{
+	auto & section = m_profileData->operator[](szCode);
+
+	if (auto & commandLine = section[L"CommandLine"]; !commandLine.empty())
+	{
+		ExecuteCallback callback = [](const CommandLine & commandLine, DWORD exitCode, std::exception_ptr exception)
+		{
+			::OutputDebugStringW(MessageResource(ID_COMMAND_EXIT, commandLine.ToString().c_str(), exitCode));
+
+			if (exception)
+			{
+				try
+				{
+					std::rethrow_exception(exception);
+				}
+				catch (const std::system_error & e)
+				{
+					::OutputDebugStringW(MessageResource(ERROR_SYS_EXCEPTION, e.what(), e.code().value()));
+				}
+				catch (const std::exception & e)
+				{
+					::OutputDebugStringW(MessageResource(ERROR_STD_EXCEPTION, e.what()));
+				}
+			}
+		};
+
+		if (auto & workDirectory = section[L"Workirectory"]; !workDirectory.empty())
+		{
+			ExecuteCommand(callback, commandLine.c_str(), workDirectory.c_str());
+		}
+		else
+		{
+			ExecuteCommand(callback, commandLine.c_str());
+		}
+	}
 }
 
 

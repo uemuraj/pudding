@@ -62,24 +62,58 @@ void CommandLine::Reset() noexcept
 	m_argc = 0, m_argv = nullptr;
 }
 
-std::wstring EscapedParameters(const CommandLine & commandLine)
+std::wstring CommandLine::ToString() const
 {
-	std::wstring parameters;
+	std::wstring commandLine;
 
+	if (m_argc > 0)
+	{
+		bool quote = false;
+
+		commandLine.push_back(L'"');
+
+		for (const wchar_t * file = m_argv[0]; *file; ++file)
+		{
+			const wchar_t ch = *file;
+
+			commandLine.push_back(ch);
+
+			if (iswblank(ch))
+			{
+				quote = true;
+			}
+		}
+
+		if (quote)
+			commandLine.push_back(L'"');
+		else
+			commandLine.erase(0, 1);
+
+		if (m_argc > 1)
+		{
+			EscapedParameters(commandLine, *this);
+		}
+	}
+
+	return commandLine;
+}
+
+std::wstring & EscapedParameters(std::wstring & buffer, const CommandLine & commandLine)
+{
 	for (auto argv : commandLine.Parameters())
 	{
 		std::wstring_view parameter(argv);
 
-		if (!parameters.empty())
+		if (!buffer.empty())
 		{
-			parameters.push_back(L' ');
+			buffer.push_back(L' ');
 		}
 
 		bool quote = parameter.find_first_of(L" \t") != std::wstring_view::npos;
 
 		if (quote)
 		{
-			parameters.push_back(L'"');
+			buffer.push_back(L'"');
 		}
 
 		int backslash = 0;
@@ -94,62 +128,64 @@ std::wstring EscapedParameters(const CommandLine & commandLine)
 
 			if (ch == L'"')
 			{
-				parameters.append(backslash * 2, L'\\');
-				parameters.push_back(quote ? L'"' : L'\\');
+				buffer.append(backslash * 2, L'\\');
+				buffer.push_back(quote ? L'"' : L'\\');
 				backslash = 0;
 			}
 
 			if (backslash > 0)
 			{
-				parameters.append(backslash, L'\\');
+				buffer.append(backslash, L'\\');
 				backslash = 0;
 			}
 
-			parameters.push_back(ch);
+			buffer.push_back(ch);
 		}
 
 		if (backslash > 0)
 		{
-			parameters.append(backslash, L'\\');
+			buffer.append(backslash, L'\\');
 		}
 
 		if (quote)
 		{
-			parameters.push_back(L'"');
+			buffer.push_back(L'"');
 		}
 	}
 
-	return parameters;
+	return buffer;
 }
 
 
-class ProcessHandle
+class ExecuteContext : public STARTUPINFOW, PROCESS_INFORMATION
 {
-	HANDLE m_handle;
+	ExecuteCallback m_callback;
+	CommandLine m_commandLine;
 
 public:
-	ProcessHandle(HANDLE handle) noexcept : m_handle(handle)
+	ExecuteContext(ExecuteCallback callback, CommandLine && commandLine) noexcept
+		: STARTUPINFOW{ .cb = sizeof(STARTUPINFOW) }, PROCESS_INFORMATION{}, m_callback(callback), m_commandLine(std::move(commandLine))
 	{}
 
-	~ProcessHandle() noexcept
+	~ExecuteContext() noexcept
 	{
-		if (m_handle)
+		::CloseHandle(hProcess);
+		::CloseHandle(hThread);
+	}
+
+	void Execute(void * env, const wchar_t * dir)
+	{
+		// TODO: m_commandLine.File() に環境変数が含まれている場合の処理を追加する
+		// TODO: m_commandLine.File() から意図的に実行可能ファイルを検索して CreateProcessW 関数の第一引数とする
+		// -> https://learn.microsoft.com/ja-jp/windows/win32/shell/app-registration#finding-an-application-executable
+
+		auto commandLine = m_commandLine.ToString();
+
+		if (!::CreateProcessW(nullptr, commandLine.data(), nullptr, nullptr, false, 0, env, dir, this, this))
 		{
-			::CloseHandle(m_handle);
+			throw std::system_error(::GetLastError(), std::system_category(), "CreateProcessW()");
 		}
 	}
-
-	operator HANDLE() const noexcept
-	{
-		return m_handle;
-	}
-};
-
-struct ExecuteContext
-{
-	CommandLine commandLine;
-	ExecuteCallback callback;
-	ProcessHandle process;
 
 	void GetExitCode() const noexcept
 	{
@@ -157,21 +193,21 @@ struct ExecuteContext
 
 		try
 		{
-			if (::WaitForSingleObject(process, INFINITE) != WAIT_OBJECT_0)
+			if (::WaitForSingleObject(hProcess, INFINITE) != WAIT_OBJECT_0)
 			{
 				throw std::system_error(::GetLastError(), std::system_category(), "WaitForSingleObject()");
 			}
 
-			if (!::GetExitCodeProcess(process, &exitCode))
+			if (!::GetExitCodeProcess(hProcess, &exitCode))
 			{
 				throw std::system_error(::GetLastError(), std::system_category(), "GetExitCodeProcess()");
 			}
 
-			callback(commandLine, exitCode, {});
+			m_callback(m_commandLine, exitCode, {});
 		}
 		catch (...)
 		{
-			callback(commandLine, exitCode, std::current_exception());
+			m_callback(m_commandLine, exitCode, std::current_exception());
 		}
 	}
 };
@@ -181,32 +217,17 @@ static void NTAPI ExecuteSimpleCallback(PTP_CALLBACK_INSTANCE, void * context)
 	std::unique_ptr<ExecuteContext>((ExecuteContext *) context)->GetExitCode();
 }
 
-
 void ExecuteCommand(ExecuteCallback callback, CommandLine && commandLine, const wchar_t * directory, int show)
 {
-	auto parameters = EscapedParameters(commandLine);
+	// TODO: 新しい環境変数ブロックを作成して使用する
+	// TODO: commandLine.File() に環境変数が含まれている場合の処理を追加する
+	// TODO: CreateProcess() で置き換える
 
-	SHELLEXECUTEINFOW info
-	{
-		.cbSize = sizeof(info),
-		.fMask = SEE_MASK_NOCLOSEPROCESS,
-		.lpFile = commandLine.File(),
-		.lpParameters = parameters.c_str(),
-		.lpDirectory = directory,
-		.nShow = show
-	};
+	auto context = std::make_unique<ExecuteContext>(callback, std::move(commandLine));
 
-	if (!::ShellExecuteExW(&info))
-	{
-		throw std::system_error(::GetLastError(), std::system_category(), "ShellExecuteExW()");
-	}
-
-	if (!info.hProcess)
-	{
-		return callback(commandLine, 0, {});
-	}
-
-	auto context = std::make_unique<ExecuteContext>(std::move(commandLine), callback, info.hProcess);
+	context->dwFlags = STARTF_USESHOWWINDOW;
+	context->wShowWindow = show;
+	context->Execute(nullptr, directory);
 
 	if (!::TrySubmitThreadpoolCallback(ExecuteSimpleCallback, context.get(), nullptr))
 	{
@@ -214,4 +235,11 @@ void ExecuteCommand(ExecuteCallback callback, CommandLine && commandLine, const 
 	}
 
 	context.release();
+}
+
+std::vector<wchar_t> CreateNewEnvironmentBlock()
+{
+	// TODO: 環境変数ブロックを作成する
+
+	return std::vector<wchar_t>();
 }

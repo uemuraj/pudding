@@ -173,8 +173,8 @@ private:
 	LRESULT OnSession(HWND hWnd, UINT, DWORD dwCode, DWORD dwID);
 	LRESULT OnReload(HWND hWnd);
 
-	void WatchSession(const wchar_t * szCode, DWORD dwCode);
 	void WatchProfile(std::wstring_view file, FileAction action);
+	void WatchSession(const wchar_t * szCode, DWORD dwCode);
 };
 
 inline const wchar_t * WTSSESSION_CHANGE(DWORD dwCode)

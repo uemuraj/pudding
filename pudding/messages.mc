@@ -95,8 +95,8 @@ Language=Japanese
 MessageId=0x1200
 SymbolicName=ID_COMMAND_EXIT
 Language=Japanese
-%1 %2
-コマンドは終了コード %3!d! で終了しました。
+%1
+コマンドは終了コード %2!d! で終了しました。
 .
 
 MessageId=0x1000

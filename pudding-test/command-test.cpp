@@ -5,9 +5,7 @@
 void PrintTo(const CommandLine & bar, std::ostream * os)
 {
 	*os << '[';
-	PrintTo(bar.File(), *os);
-	*os << " ";
-	PrintTo(EscapedParameters(bar), *os);
+	PrintTo(bar.ToString(), *os);
 	*os << ']';
 }
 
@@ -32,22 +30,12 @@ TEST(CommandLineTest, Empty)
 //
 
 struct EscapedParametersTest : testing::TestWithParam<const wchar_t *>
-{
-	CommandLine Clone(CommandLine & other)
-	{
-		std::wstring command(other.File());
-
-		command.push_back(L' ');
-		command.append(EscapedParameters(other));
-
-		return command.c_str();
-	}
-};
+{};
 
 TEST_P(EscapedParametersTest, Case)
 {
 	CommandLine commandLine1(GetParam());
-	CommandLine commandLine2 = Clone(commandLine1);
+	CommandLine commandLine2(commandLine1.ToString().c_str());
 	EXPECT_EQ(commandLine1, commandLine2);
 }
 
@@ -70,7 +58,7 @@ TEST(CommandLineTest, ExecuteSuccess)
 		promise.set_value(exitCode);
 	};
 
-	ExecuteCommand(callback, CommandLine(L"cmd /c echo hello"), nullptr, SW_HIDE);
+	ExecuteCommand(callback, CommandLine(L"cmd.exe /c echo hello"), nullptr, SW_HIDE);
 
 	EXPECT_EQ(promise.get_future().get(), 0);
 }
@@ -84,7 +72,7 @@ TEST(CommandLineTest, ExecuteError)
 		promise.set_value(exitCode);
 	};
 
-	ExecuteCommand(callback, CommandLine(L"cmd /c exit 1"), nullptr, SW_HIDE);
+	ExecuteCommand(callback, CommandLine(L"cmd.exe /c exit 1"), nullptr, SW_HIDE);
 
 	EXPECT_EQ(promise.get_future().get(), 1);
 }

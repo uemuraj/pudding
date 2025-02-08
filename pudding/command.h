@@ -4,6 +4,7 @@
 #include <functional>
 #include <ranges>
 #include <string>
+#include <vector>
 
 class CommandLine
 {
@@ -40,10 +41,14 @@ public:
 			return std::ranges::subrange(m_argv, m_argv);
 		}
 	}
+
+	std::wstring ToString() const;
 };
 
-std::wstring EscapedParameters(const CommandLine & commandLine);
+std::wstring & EscapedParameters(std::wstring & buffer, const CommandLine & commandLine);
 
 using ExecuteCallback = std::function<void(const CommandLine & commandLine, DWORD exitCode, std::exception_ptr exception)>;
 
-void ExecuteCommand(ExecuteCallback callback, CommandLine && commandLine, const wchar_t * directory, int show);
+void ExecuteCommand(ExecuteCallback callback, CommandLine && commandLine, const wchar_t * directory = nullptr, int show = SW_SHOWMINNOACTIVE);
+
+std::vector<wchar_t> CreateNewEnvironmentBlock();

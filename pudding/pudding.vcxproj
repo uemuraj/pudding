@@ -143,6 +143,7 @@
     <ClCompile Include="dwatch.cpp" />
     <ClCompile Include="profile.cpp" />
     <ClCompile Include="pudding.cpp" />
+    <ClCompile Include="registry.cpp" />
     <ClCompile Include="thread.cpp" />
     <ClCompile Include="utility.cpp" />
     <ClCompile Include="winmain.cpp" />
@@ -152,6 +153,7 @@
     <ClInclude Include="dwatch.h" />
     <ClInclude Include="profile.h" />
     <ClInclude Include="pudding.h" />
+    <ClInclude Include="registry.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="thread.h" />
     <ClInclude Include="utility.h" />

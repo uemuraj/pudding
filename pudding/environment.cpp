@@ -38,10 +38,11 @@ std::vector<wchar_t> NewEnvironmentStrings(const EnvironmentStringsView & view)
 
 class AllEnvironmentStringsView : public EnvironmentStringsView
 {
-	CurrentProcessEnvironment m_env0;
-	CurrentSystemEnvironment m_env1;
-	CurentUserEnvironment m_env2;
-	VolatileUserEnvironment m_env3;
+	CurentUserEnvironment m_env0;
+	VolatileUserEnvironment m_env1;
+	CurrentSystemEnvironment m_env2;
+	CurrentProcessEnvironment m_env3;
+	std::wstring m_path;
 
 public:
 	AllEnvironmentStringsView()
@@ -50,6 +51,27 @@ public:
 		merge(m_env1);
 		merge(m_env2);
 		merge(m_env3);
+
+		m_path = this->operator[](L"Path");
+
+		if (auto path = m_env2.find(L"Path"); path != m_env2.end())
+		{
+			if (m_path.empty())
+			{
+				m_path = path->second;
+			}
+			else if (m_path.back() == L';')
+			{
+				m_path += path->second;
+			}
+			else
+			{
+				m_path += L';';
+				m_path += path->second;
+			}
+		}
+
+		this->operator[](L"Path") = m_path;
 	}
 };
 

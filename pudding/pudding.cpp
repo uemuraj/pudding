@@ -76,11 +76,11 @@ LRESULT PuddingWindow::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lP
 		}
 		catch (const std::system_error & e)
 		{
-			::OutputDebugStringW(MessageResource(ERROR_SYS_EXCEPTION, e.what(), e.code().value()));
+			::MessageBoxW(nullptr, MessageResource(ERROR_SYS_EXCEPTION, e.what(), e.code().value()), VS_TARGETNAMEW, MB_ICONERROR);
 		}
 		catch (const std::exception & e)
 		{
-			::OutputDebugStringW(MessageResource(ERROR_STD_EXCEPTION, e.what()));
+			::MessageBoxW(nullptr, MessageResource(ERROR_STD_EXCEPTION, e.what()), VS_TARGETNAMEW, MB_ICONERROR);
 		}
 		break;
 	}

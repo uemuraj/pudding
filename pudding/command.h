@@ -43,9 +43,14 @@ public:
 	}
 
 	std::wstring ToString() const;
+	std::wstring EscapedParameters() const;
+
+private:
+	void EscapedParameters(std::wstring & buffer) const;
 };
 
-std::wstring & EscapedParameters(std::wstring & buffer, const CommandLine & commandLine);
+
+std::wstring SearchExecutable(const wchar_t * path, const wchar_t * file, const wchar_t * ext = nullptr);
 
 using ExecuteCallback = std::function<void(const CommandLine & commandLine, DWORD exitCode, std::exception_ptr exception)>;
 

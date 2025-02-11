@@ -92,16 +92,23 @@ std::wstring CommandLine::ToString() const
 
 		if (m_argc > 1)
 		{
-			EscapedParameters(commandLine, *this);
+			EscapedParameters(commandLine);
 		}
 	}
 
 	return commandLine;
 }
 
-std::wstring & EscapedParameters(std::wstring & buffer, const CommandLine & commandLine)
+std::wstring CommandLine::EscapedParameters() const
 {
-	for (auto argv : commandLine.Parameters())
+	std::wstring buf;
+	EscapedParameters(buf);
+	return buf;
+}
+
+void CommandLine::EscapedParameters(std::wstring & buffer) const
+{
+	for (auto argv : Parameters())
 	{
 		std::wstring_view parameter(argv);
 
@@ -153,8 +160,40 @@ std::wstring & EscapedParameters(std::wstring & buffer, const CommandLine & comm
 			buffer.push_back(L'"');
 		}
 	}
+}
 
-	return buffer;
+std::wstring SearchExecutable(const wchar_t * path, const wchar_t * file, const wchar_t * ext)
+{
+	DWORD len = 12;
+
+	std::wstring buf(len, L'\0');
+
+	for (;;)
+	{
+		auto ret = ::SearchPathW(path, file, ext, len + 1, buf.data(), nullptr);
+
+		if (!ret)
+		{
+			if (auto error = ::GetLastError(); error != ERROR_FILE_NOT_FOUND)
+			{
+				throw std::system_error(error, std::system_category(), "SearchPathW()");
+			}
+
+			buf.clear();
+			break;
+		}
+
+		buf.resize(ret);
+
+		if (len >= ret)
+		{
+			break;
+		}
+
+		len = ret;
+	}
+
+	return buf;
 }
 
 
@@ -176,20 +215,38 @@ public:
 		::CloseHandle(hThread);
 	}
 
+	std::wstring SearchExecutable(const wchar_t * dir)
+	{
+		auto file = m_commandLine.File();
+		auto path = GetEnvironmnetValuePtr(m_environment, L"Path");
+
+		auto executable = ::SearchExecutable(dir, file, L".exe");
+
+		if (executable.empty())
+		{
+			executable = ::SearchExecutable(path, file, L".exe");
+		}
+
+		if (executable.empty())
+		{
+			throw std::system_error(ERROR_FILE_NOT_FOUND, std::system_category(), "SearchExecutable()");
+		}
+
+		return executable;
+	}
+
 	void Execute(const wchar_t * dir)
 	{
-		// TODO: m_commandLine.File() に環境変数が含まれている場合の処理を追加する
-		// TODO: m_commandLine.File() から意図的に実行可能ファイルを検索して CreateProcessW 関数の第一引数とする
-		// -> https://learn.microsoft.com/ja-jp/windows/win32/shell/app-registration#finding-an-application-executable
-		// -> https://learn.microsoft.com/ja-jp/windows/win32/api/processenv/nf-processenv-searchpathw
+		auto executable = SearchExecutable(dir);
+		auto commandLine = m_commandLine.EscapedParameters();
 
-		auto commandLine = m_commandLine.ToString();
+		auto exe = executable.data();
 		auto cmd = commandLine.data();
 		auto env = m_environment.data();
 
-		DWORD flags = CREATE_UNICODE_ENVIRONMENT;
+		constexpr DWORD flags = CREATE_UNICODE_ENVIRONMENT;
 
-		if (!::CreateProcessW(nullptr, cmd, nullptr, nullptr, false, flags, env, dir, this, this))
+		if (!::CreateProcessW(exe, cmd, nullptr, nullptr, false, flags, env, dir, this, this))
 		{
 			throw std::system_error(::GetLastError(), std::system_category(), "CreateProcessW()");
 		}

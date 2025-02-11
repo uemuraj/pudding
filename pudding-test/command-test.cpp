@@ -48,6 +48,17 @@ INSTANTIATE_TEST_CASE_P(Cases, EscapedParametersTest, testing::Values(
 	LR"(file a"b"" c d)"
 ));
 
+TEST(CommandLineTest, SearchExecutableSuccess)
+{
+	EXPECT_EQ(SearchExecutable(L"C:\\Windows;C:\\Windows\\System32", L"cmd.exe"), L"C:\\Windows\\System32\\cmd.exe");
+	EXPECT_EQ(SearchExecutable(L"C:\\Windows;C:\\Windows\\System32", L"cmd", L".exe"), L"C:\\Windows\\System32\\cmd.exe");
+	EXPECT_EQ(SearchExecutable(L"C:\\Windows;C:\\Windows\\System32", L"cmd.exe", L".exe"), L"C:\\Windows\\System32\\cmd.exe");
+}
+
+TEST(CommandLineTest, SearchExecutableError)
+{
+	EXPECT_EQ(SearchExecutable(L"C:\\Windows;C:\\Windows\\System32", L"cmd", L".com"), L"");
+}
 
 TEST(CommandLineTest, ExecuteSuccess)
 {

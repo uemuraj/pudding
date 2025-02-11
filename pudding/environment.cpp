@@ -80,6 +80,24 @@ std::vector<wchar_t> NewEnvironmentStrings()
 	return NewEnvironmentStrings(AllEnvironmentStringsView{});
 }
 
+const wchar_t * GetEnvironmnetValuePtr(const std::vector<wchar_t> & env, const wchar_t * name)
+{
+	auto len = wcslen(name);
+
+	for (const wchar_t * data = env.data(); *data; data += (wcslen(data) + 1))
+	{
+		if (data[len] == L'=')
+		{
+			if (_wcsnicmp(data, name, len) == 0)
+			{
+				return data + len + 1;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 
 CurrentProcessEnvironment::CurrentProcessEnvironment() : m_env(::GetEnvironmentStringsW())
 {

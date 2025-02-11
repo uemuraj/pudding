@@ -37,7 +37,7 @@ int main(int argc, char ** argv)
 }
 
 
-void PrintTo(const std::wstring & str, std::ostream & os)
+void PrintTo(std::wstring_view str, std::ostream & os)
 {
 	std::string buff;
 

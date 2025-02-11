@@ -76,3 +76,17 @@ TEST(CommandLineTest, ExecuteError)
 
 	EXPECT_EQ(promise.get_future().get(), 1);
 }
+
+TEST(CommandLineTest, ExecuteEnvironment)
+{
+	std::promise<DWORD> promise;
+
+	ExecuteCallback callback = [&promise](const CommandLine &, DWORD exitCode, std::exception_ptr)
+	{
+		promise.set_value(exitCode);
+	};
+
+	ExecuteCommand(callback, CommandLine(L"cmd.exe /c set > enviroment.txt"), nullptr, SW_HIDE);
+
+	EXPECT_EQ(promise.get_future().get(), 0);
+}

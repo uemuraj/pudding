@@ -8,5 +8,6 @@
 
 #include <ostream>
 #include <string>
+#include <string_view>
 
-void PrintTo(const std::wstring & str, std::ostream & os);
+void PrintTo(std::wstring_view str, std::ostream & os);

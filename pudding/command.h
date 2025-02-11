@@ -50,5 +50,3 @@ std::wstring & EscapedParameters(std::wstring & buffer, const CommandLine & comm
 using ExecuteCallback = std::function<void(const CommandLine & commandLine, DWORD exitCode, std::exception_ptr exception)>;
 
 void ExecuteCommand(ExecuteCallback callback, CommandLine && commandLine, const wchar_t * directory = nullptr, int show = SW_SHOWMINNOACTIVE);
-
-std::vector<wchar_t> CreateNewEnvironmentBlock();

@@ -9,6 +9,7 @@
     <ClCompile Include="dwatch.cpp" />
     <ClCompile Include="thread.cpp" />
     <ClCompile Include="registry.cpp" />
+    <ClCompile Include="environment.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="winmain.h" />
@@ -22,6 +23,7 @@
     <ClInclude Include="dwatch.h" />
     <ClInclude Include="thread.h" />
     <ClInclude Include="registry.h" />
+    <ClInclude Include="environment.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="resource">

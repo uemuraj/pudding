@@ -25,7 +25,7 @@ void QueryRegInfo(HKEY key, const RegInfo & info)
 	}
 }
 
-RegistryValues::RegistryValues(HKEY key, const wchar_t * subKey, REGSAM samDesired) : m_key(nullptr)
+RegistryKey::RegistryKey(HKEY key, const wchar_t * subKey, REGSAM samDesired) : m_key(nullptr)
 {
 	if (auto result = ::RegOpenKeyExW(key, subKey, 0, samDesired, &m_key); result != ERROR_SUCCESS)
 	{
@@ -33,7 +33,7 @@ RegistryValues::RegistryValues(HKEY key, const wchar_t * subKey, REGSAM samDesir
 	}
 }
 
-RegistryValues::~RegistryValues() noexcept
+RegistryKey::~RegistryKey() noexcept
 {
 	if (m_key)
 	{
@@ -41,19 +41,24 @@ RegistryValues::~RegistryValues() noexcept
 	}
 }
 
-RegistryValues::Iterator RegistryValues::begin() const
+RegistryKey::Iterator RegistryKey::begin() const
 {
 	return { m_key };
 }
 
-DWORD RegistryValues::end() const
+DWORD RegistryKey::end() const
+{
+	return size();
+}
+
+DWORD RegistryKey::size() const
 {
 	DWORD cValues{};
 	QueryRegInfo(m_key, { .pcValues = &cValues });
 	return cValues;
 }
 
-RegistryValues::Iterator::Iterator(HKEY key) : m_key(key), m_index(0), m_type(0), m_cchNameLen(0), m_cbValueLen(0)
+RegistryKey::Iterator::Iterator(HKEY key) : m_key(key), m_index(0), m_type(0), m_cchNameLen(0), m_cbValueLen(0)
 {
 	DWORD cchMaxNameLen{};
 	DWORD cbMaxValueLen{};
@@ -69,12 +74,12 @@ RegistryValues::Iterator::Iterator(HKEY key) : m_key(key), m_index(0), m_type(0)
 	this->operator++();
 }
 
-RegistryValues::Iterator::~Iterator() noexcept
+RegistryKey::Iterator::~Iterator() noexcept
 {
 	// Do nothing
 }
 
-RegistryValues::Iterator & RegistryValues::Iterator::operator++()
+RegistryKey::Iterator & RegistryKey::Iterator::operator++()
 {
 	m_cchNameLen = m_cchNameLenMax;
 	m_cbValueLen = m_cbValueLenMax;
@@ -96,7 +101,7 @@ RegistryValues::Iterator & RegistryValues::Iterator::operator++()
 }
 
 template<>
-std::wstring_view RegistryValue::Value() const
+std::wstring_view RegistryValue::ToValue() const
 {
 	switch (Type)
 	{

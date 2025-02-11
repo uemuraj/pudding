@@ -24,9 +24,9 @@ public:
 		return m_data;
 	}
 
-	MessageResource(MessageResource && other) noexcept : m_data(nullptr)
+	MessageResource(MessageResource && other) noexcept
 	{
-		std::swap(m_data, other.m_data);
+		m_data = std::exchange(other.m_data, nullptr);
 	}
 
 	MessageResource(const MessageResource & other) noexcept = delete;

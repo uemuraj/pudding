@@ -1,30 +1,29 @@
 #include "pch.h"
 #include <registry.h>
 
+void PrintTo(const RegistryValue & value, std::ostream * os)
+{
+	PrintTo(value.Name, *os);
+	*os << '=';
+	PrintTo(value.ToValue<std::wstring_view>(), *os);
+}
+
 TEST(RegistryTest, SystemEnvironmentValues)
 {
-	RegistryValues values(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment");
+	RegistryKey values(HKEY_LOCAL_MACHINE, L"SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment");
 
 	for (const auto & value : values)
 	{
-		std::wostringstream os;
-
-		os << value.Name << L" = " << value.Value<std::wstring_view>() << std::endl;
-
-		::OutputDebugStringW(os.str().c_str());
+		SUCCEED() << testing::PrintToString(value);
 	}
 }
 
 TEST(RegistryTest, UserEnvironmentValues)
 {
-	RegistryValues values(HKEY_CURRENT_USER, L"Environment");
+	RegistryKey values(HKEY_CURRENT_USER, L"Environment");
 
 	for (const auto & value : values)
 	{
-		std::wostringstream os;
-
-		os << value.Name << L" = " << value.Value<std::wstring_view>() << std::endl;
-
-		::OutputDebugStringW(os.str().c_str());
+		SUCCEED() << testing::PrintToString(value);
 	}
 }

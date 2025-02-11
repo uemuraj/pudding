@@ -5,21 +5,22 @@
 #include <string>
 #include <string_view>
 
-class RegistryValues
+class RegistryKey
 {
 	HKEY m_key;
 
 public:
-	RegistryValues(HKEY key, const wchar_t * subKey, REGSAM samDesired = KEY_READ);
-	~RegistryValues() noexcept;
+	RegistryKey(HKEY key, const wchar_t * subKey, REGSAM samDesired = KEY_READ);
+	~RegistryKey() noexcept;
 
-	RegistryValues(const RegistryValues &) = delete;
-	RegistryValues & operator=(const RegistryValues &) = delete;
+	RegistryKey(const RegistryKey &) = delete;
+	RegistryKey & operator=(const RegistryKey &) = delete;
 
 	class Iterator;
 
 	Iterator begin() const;
 	DWORD end() const;
+	DWORD size() const;
 };
 
 struct RegistryValue
@@ -29,16 +30,16 @@ struct RegistryValue
 	std::basic_string_view<unsigned char> Data;
 
 	template<typename T>
-	T Value() const
+	T ToValue() const
 	{
 		static_assert(false);
 	}
 
 	template<>
-	std::wstring_view Value() const;
+	std::wstring_view ToValue() const;
 };
 
-class RegistryValues::Iterator
+class RegistryKey::Iterator
 {
 	HKEY m_key;
 	DWORD m_index;

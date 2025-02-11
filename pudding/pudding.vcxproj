@@ -141,6 +141,7 @@
   <ItemGroup>
     <ClCompile Include="command.cpp" />
     <ClCompile Include="dwatch.cpp" />
+    <ClCompile Include="environment.cpp" />
     <ClCompile Include="profile.cpp" />
     <ClCompile Include="pudding.cpp" />
     <ClCompile Include="registry.cpp" />
@@ -151,6 +152,7 @@
   <ItemGroup>
     <ClInclude Include="command.h" />
     <ClInclude Include="dwatch.h" />
+    <ClInclude Include="environment.h" />
     <ClInclude Include="profile.h" />
     <ClInclude Include="pudding.h" />
     <ClInclude Include="registry.h" />

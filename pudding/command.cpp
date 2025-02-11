@@ -1,4 +1,5 @@
 #include "command.h"
+#include "environment.h"
 
 #include <shellapi.h>
 #include <shlwapi.h>
@@ -161,10 +162,12 @@ class ExecuteContext : public STARTUPINFOW, PROCESS_INFORMATION
 {
 	ExecuteCallback m_callback;
 	CommandLine m_commandLine;
+	std::vector<wchar_t> m_environment;
 
 public:
-	ExecuteContext(ExecuteCallback callback, CommandLine && commandLine) noexcept
-		: STARTUPINFOW{ .cb = sizeof(STARTUPINFOW) }, PROCESS_INFORMATION{}, m_callback(callback), m_commandLine(std::move(commandLine))
+	ExecuteContext(ExecuteCallback callback, CommandLine && commandLine) noexcept :
+		STARTUPINFOW{ .cb = sizeof(STARTUPINFOW) }, PROCESS_INFORMATION{},
+		m_callback(callback), m_commandLine(std::move(commandLine)), m_environment(NewEnvironmentStrings())
 	{}
 
 	~ExecuteContext() noexcept
@@ -173,15 +176,20 @@ public:
 		::CloseHandle(hThread);
 	}
 
-	void Execute(void * env, const wchar_t * dir)
+	void Execute(const wchar_t * dir)
 	{
 		// TODO: m_commandLine.File() に環境変数が含まれている場合の処理を追加する
 		// TODO: m_commandLine.File() から意図的に実行可能ファイルを検索して CreateProcessW 関数の第一引数とする
 		// -> https://learn.microsoft.com/ja-jp/windows/win32/shell/app-registration#finding-an-application-executable
+		// -> https://learn.microsoft.com/ja-jp/windows/win32/api/processenv/nf-processenv-searchpathw
 
 		auto commandLine = m_commandLine.ToString();
+		auto cmd = commandLine.data();
+		auto env = m_environment.data();
 
-		if (!::CreateProcessW(nullptr, commandLine.data(), nullptr, nullptr, false, 0, env, dir, this, this))
+		DWORD flags = CREATE_UNICODE_ENVIRONMENT;
+
+		if (!::CreateProcessW(nullptr, cmd, nullptr, nullptr, false, flags, env, dir, this, this))
 		{
 			throw std::system_error(::GetLastError(), std::system_category(), "CreateProcessW()");
 		}
@@ -219,15 +227,11 @@ static void NTAPI ExecuteSimpleCallback(PTP_CALLBACK_INSTANCE, void * context)
 
 void ExecuteCommand(ExecuteCallback callback, CommandLine && commandLine, const wchar_t * directory, int show)
 {
-	// TODO: 新しい環境変数ブロックを作成して使用する
-	// TODO: commandLine.File() に環境変数が含まれている場合の処理を追加する
-	// TODO: CreateProcess() で置き換える
-
 	auto context = std::make_unique<ExecuteContext>(callback, std::move(commandLine));
 
 	context->dwFlags = STARTF_USESHOWWINDOW;
 	context->wShowWindow = show;
-	context->Execute(nullptr, directory);
+	context->Execute(directory);
 
 	if (!::TrySubmitThreadpoolCallback(ExecuteSimpleCallback, context.get(), nullptr))
 	{
@@ -235,11 +239,4 @@ void ExecuteCommand(ExecuteCallback callback, CommandLine && commandLine, const 
 	}
 
 	context.release();
-}
-
-std::vector<wchar_t> CreateNewEnvironmentBlock()
-{
-	// TODO: 環境変数ブロックを作成する
-
-	return std::vector<wchar_t>();
 }

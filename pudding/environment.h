@@ -8,7 +8,9 @@
 
 std::vector<wchar_t> NewEnvironmentStrings();
 
-const wchar_t * GetEnvironmnetValuePtr(const std::vector<wchar_t> & env, const wchar_t * name);
+const wchar_t * GetEnvironmnetValuePtr(const wchar_t * env, std::wstring_view name);
+
+std::wstring ExpandEnvironmentValue(const wchar_t * env, std::wstring_view value);
 
 using EnvironmentStringsView = std::unordered_map<std::wstring_view, std::wstring_view>;
 

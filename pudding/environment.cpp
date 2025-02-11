@@ -80,22 +80,67 @@ std::vector<wchar_t> NewEnvironmentStrings()
 	return NewEnvironmentStrings(AllEnvironmentStringsView{});
 }
 
-const wchar_t * GetEnvironmnetValuePtr(const std::vector<wchar_t> & env, const wchar_t * name)
+const wchar_t * GetEnvironmnetValuePtr(const wchar_t * env, std::wstring_view name)
 {
-	auto len = wcslen(name);
+	const auto len = name.size();
 
-	for (const wchar_t * data = env.data(); *data; data += (wcslen(data) + 1))
+	for (; *env; env += (wcslen(env) + 1))
 	{
-		if (data[len] == L'=')
+		if (env[len] == L'=')
 		{
-			if (_wcsnicmp(data, name, len) == 0)
+			if (_wcsnicmp(env, name.data(), len) == 0)
 			{
-				return data + len + 1;
+				return env + len + 1;
 			}
 		}
 	}
 
 	return nullptr;
+}
+
+std::wstring ExpandEnvironmentValue(const wchar_t * env, std::wstring_view str)
+{
+	std::wstring buf;
+
+	buf.reserve(str.size());
+
+	for (auto src = str.data(); *src;)
+	{
+		if (*src != L'%')
+		{
+			buf.push_back(*src++);
+			continue;
+		}
+
+		const wchar_t * end = src + 1;
+
+		while (*end && *end != L'%')
+		{
+			++end;
+		}
+
+		if (*end != L'%')
+		{
+			buf.append(src, end - src);
+			break;
+		}
+
+		const wchar_t * name = src + 1;
+		const wchar_t * next = end + 1;
+
+		if (auto value = GetEnvironmnetValuePtr(env, { name, (size_t) (end - name) }); value)
+		{
+			buf.append(value);
+		}
+		else
+		{
+			buf.append(src, next - src);
+		}
+
+		src = next;
+	}
+
+	return buf;
 }
 
 

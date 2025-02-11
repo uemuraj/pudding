@@ -218,7 +218,7 @@ public:
 	std::wstring SearchExecutable(const wchar_t * dir)
 	{
 		auto file = m_commandLine.File();
-		auto path = GetEnvironmnetValuePtr(m_environment, L"Path");
+		auto path = GetEnvironmnetValuePtr(m_environment.data(), L"Path");
 
 		auto executable = ::SearchExecutable(dir, file, L".exe");
 
@@ -235,9 +235,11 @@ public:
 		return executable;
 	}
 
-	void Execute(const wchar_t * dir)
+	void Execute(const wchar_t * directory)
 	{
-		auto executable = SearchExecutable(dir);
+		// TODO: directory に含まれている環境変数を展開する
+
+		auto executable = SearchExecutable(directory);
 		auto commandLine = m_commandLine.EscapedParameters();
 
 		auto exe = executable.data();
@@ -246,7 +248,7 @@ public:
 
 		constexpr DWORD flags = CREATE_UNICODE_ENVIRONMENT;
 
-		if (!::CreateProcessW(exe, cmd, nullptr, nullptr, false, flags, env, dir, this, this))
+		if (!::CreateProcessW(exe, cmd, nullptr, nullptr, false, flags, env, directory, this, this))
 		{
 			throw std::system_error(::GetLastError(), std::system_category(), "CreateProcessW()");
 		}

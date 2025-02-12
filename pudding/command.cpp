@@ -202,12 +202,18 @@ class ExecuteContext : public STARTUPINFOW, PROCESS_INFORMATION
 	ExecuteCallback m_callback;
 	CommandLine m_commandLine;
 	std::vector<wchar_t> m_environment;
+	std::wstring m_directory;
 
 public:
-	ExecuteContext(ExecuteCallback callback, CommandLine && commandLine) noexcept :
+	ExecuteContext(ExecuteCallback callback, CommandLine && commandLine, const wchar_t * directory) noexcept :
 		STARTUPINFOW{ .cb = sizeof(STARTUPINFOW) }, PROCESS_INFORMATION{},
 		m_callback(callback), m_commandLine(std::move(commandLine)), m_environment(NewEnvironmentStrings())
-	{}
+	{
+		if (directory && *directory)
+		{
+			m_directory = ExpandEnvironmentValue(m_environment.data(), directory);
+		}
+	}
 
 	~ExecuteContext() noexcept
 	{
@@ -215,40 +221,19 @@ public:
 		::CloseHandle(hThread);
 	}
 
-	std::wstring SearchExecutable(const wchar_t * dir)
+	void Execute()
 	{
-		auto file = m_commandLine.File();
-		auto path = GetEnvironmnetValuePtr(m_environment.data(), L"Path");
-
-		auto executable = ::SearchExecutable(dir, file, L".exe");
-
-		if (executable.empty())
-		{
-			executable = ::SearchExecutable(path, file, L".exe");
-		}
-
-		if (executable.empty())
-		{
-			throw std::system_error(ERROR_FILE_NOT_FOUND, std::system_category(), "SearchExecutable()");
-		}
-
-		return executable;
-	}
-
-	void Execute(const wchar_t * directory)
-	{
-		// TODO: directory に含まれている環境変数を展開する
-
-		auto executable = SearchExecutable(directory);
+		auto executable = SearchExecutable();
 		auto commandLine = m_commandLine.EscapedParameters();
 
 		auto exe = executable.data();
 		auto cmd = commandLine.data();
 		auto env = m_environment.data();
+		auto dir = GetWorkDirectory();
 
 		constexpr DWORD flags = CREATE_UNICODE_ENVIRONMENT;
 
-		if (!::CreateProcessW(exe, cmd, nullptr, nullptr, false, flags, env, directory, this, this))
+		if (!::CreateProcessW(exe, cmd, nullptr, nullptr, false, flags, env, dir, this, this))
 		{
 			throw std::system_error(::GetLastError(), std::system_category(), "CreateProcessW()");
 		}
@@ -277,6 +262,41 @@ public:
 			m_callback(m_commandLine, exitCode, std::current_exception());
 		}
 	}
+
+private:
+	std::wstring SearchExecutable()
+	{
+		std::wstring executable;
+
+		auto file = m_commandLine.File();
+
+		if (auto dir = GetWorkDirectory(); dir)
+		{
+			executable = ::SearchExecutable(dir, file, L".exe");
+		}
+
+		if (executable.empty())
+		{
+			executable = ::SearchExecutable(GetPath(), file, L".exe");
+		}
+
+		if (executable.empty())
+		{
+			throw std::system_error(ERROR_FILE_NOT_FOUND, std::system_category(), "SearchExecutable()");
+		}
+
+		return executable;
+	}
+
+	const wchar_t * GetPath() const noexcept
+	{
+		return GetEnvironmnetValuePtr(m_environment.data(), L"Path");
+	}
+
+	const wchar_t * GetWorkDirectory() const noexcept
+	{
+		return m_directory.empty() ? nullptr : m_directory.c_str();
+	}
 };
 
 static void NTAPI ExecuteSimpleCallback(PTP_CALLBACK_INSTANCE, void * context)
@@ -286,11 +306,11 @@ static void NTAPI ExecuteSimpleCallback(PTP_CALLBACK_INSTANCE, void * context)
 
 void ExecuteCommand(ExecuteCallback callback, CommandLine && commandLine, const wchar_t * directory, int show)
 {
-	auto context = std::make_unique<ExecuteContext>(callback, std::move(commandLine));
+	auto context = std::make_unique<ExecuteContext>(callback, std::move(commandLine), directory);
 
 	context->dwFlags = STARTF_USESHOWWINDOW;
 	context->wShowWindow = show;
-	context->Execute(directory);
+	context->Execute();
 
 	if (!::TrySubmitThreadpoolCallback(ExecuteSimpleCallback, context.get(), nullptr))
 	{

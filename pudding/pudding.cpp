@@ -237,7 +237,7 @@ void PuddingWindow::WatchSession(const wchar_t * szCode, DWORD dwCode)
 			}
 		};
 
-		if (auto & workDirectory = section[L"Workirectory"]; !workDirectory.empty())
+		if (auto & workDirectory = section[L"WorkDirectory"]; !workDirectory.empty())
 		{
 			ExecuteCommand(callback, commandLine.c_str(), workDirectory.c_str());
 		}

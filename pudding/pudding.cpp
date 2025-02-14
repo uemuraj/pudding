@@ -76,10 +76,12 @@ LRESULT PuddingWindow::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lP
 		}
 		catch (const std::system_error & e)
 		{
+			// TDOD: デバッグ中ではない場合はログファイルへ出力するようにする
 			::MessageBoxW(nullptr, MessageResource(ERROR_SYS_EXCEPTION, e.what(), e.code().value()), VS_TARGETNAMEW, MB_ICONERROR);
 		}
 		catch (const std::exception & e)
 		{
+			// TDOD: デバッグ中ではない場合はログファイルへ出力するようにする
 			::MessageBoxW(nullptr, MessageResource(ERROR_STD_EXCEPTION, e.what()), VS_TARGETNAMEW, MB_ICONERROR);
 		}
 		break;
@@ -122,10 +124,12 @@ LRESULT PuddingWindow::OnDestroy(HWND hWnd) noexcept
 		}
 		catch (const std::system_error & e)
 		{
+			// TDOD: デバッグ中ではない場合はログファイルへ出力するようにする
 			::OutputDebugStringW(MessageResource(ERROR_SYS_EXCEPTION, e.what(), e.code().value()));
 		}
 		catch (const std::exception & e)
 		{
+			// TDOD: デバッグ中ではない場合はログファイルへ出力するようにする
 			::OutputDebugStringW(MessageResource(ERROR_STD_EXCEPTION, e.what()));
 		}
 	}
@@ -228,10 +232,12 @@ void PuddingWindow::WatchSession(const wchar_t * szCode, DWORD dwCode)
 				}
 				catch (const std::system_error & e)
 				{
+					// TDOD: デバッグ中ではない場合はログファイルへ出力するようにする
 					::OutputDebugStringW(MessageResource(ERROR_SYS_EXCEPTION, e.what(), e.code().value()));
 				}
 				catch (const std::exception & e)
 				{
+					// TDOD: デバッグ中ではない場合はログファイルへ出力するようにする
 					::OutputDebugStringW(MessageResource(ERROR_STD_EXCEPTION, e.what()));
 				}
 			}

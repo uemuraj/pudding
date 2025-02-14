@@ -13,6 +13,7 @@ class MessageResource
 
 public:
 	MessageResource(LONG id, ...) noexcept;
+	MessageResource(LONG id, va_list args) noexcept;
 
 	~MessageResource() noexcept
 	{

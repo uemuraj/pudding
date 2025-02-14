@@ -24,6 +24,14 @@ MessageResource::MessageResource(LONG id, ...) noexcept
 	va_end(args);
 }
 
+MessageResource::MessageResource(LONG id, va_list args) noexcept
+{
+	if (::FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_HMODULE, GetInstance(), id, 0, (LPWSTR) &m_data, 0, &args) == 0)
+	{
+		m_data = ::StrDupW(L"null");
+	}
+}
+
 GetCurrentUserName::GetCurrentUserName() : m_data{}
 {
 	DWORD size = __crt_countof(m_data);

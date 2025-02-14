@@ -31,6 +31,39 @@ static MessageResource CreateStatusMessage(const CurrentSession & session)
 	throw std::runtime_error(__FUNCTION__ ": unknown protocol type");
 }
 
+void OutputLog(const std::system_error & e)
+{
+	if (::IsDebuggerPresent())
+	{
+		::OutputDebugStringW(MessageResource(ERROR_SYS_EXCEPTION, e.what(), e.code().value()));
+	}
+
+	// TDOD: ログファイルにも出力するようにする
+}
+
+void OutputLog(const std::exception & e)
+{
+	if (::IsDebuggerPresent())
+	{
+		::OutputDebugStringW(MessageResource(ERROR_STD_EXCEPTION, e.what()));
+	}
+
+	// TDOD: ログファイルにも出力するようにする
+}
+
+void OutputLog(LONG id, ...)
+{
+	va_list args{};
+	va_start(args, id);
+
+	if (::IsDebuggerPresent())
+	{
+		::OutputDebugStringW(MessageResource(id, args));
+	}
+
+	// TDOD: ログファイルにも出力するようにする
+}
+
 
 LRESULT PuddingWindow::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -76,13 +109,11 @@ LRESULT PuddingWindow::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lP
 		}
 		catch (const std::system_error & e)
 		{
-			// TDOD: デバッグ中ではない場合はログファイルへ出力するようにする
-			::MessageBoxW(nullptr, MessageResource(ERROR_SYS_EXCEPTION, e.what(), e.code().value()), VS_TARGETNAMEW, MB_ICONERROR);
+			OutputLog(e);
 		}
 		catch (const std::exception & e)
 		{
-			// TDOD: デバッグ中ではない場合はログファイルへ出力するようにする
-			::MessageBoxW(nullptr, MessageResource(ERROR_STD_EXCEPTION, e.what()), VS_TARGETNAMEW, MB_ICONERROR);
+			OutputLog(e);
 		}
 		break;
 	}
@@ -124,13 +155,11 @@ LRESULT PuddingWindow::OnDestroy(HWND hWnd) noexcept
 		}
 		catch (const std::system_error & e)
 		{
-			// TDOD: デバッグ中ではない場合はログファイルへ出力するようにする
-			::OutputDebugStringW(MessageResource(ERROR_SYS_EXCEPTION, e.what(), e.code().value()));
+			OutputLog(e);
 		}
 		catch (const std::exception & e)
 		{
-			// TDOD: デバッグ中ではない場合はログファイルへ出力するようにする
-			::OutputDebugStringW(MessageResource(ERROR_STD_EXCEPTION, e.what()));
+			OutputLog(e);
 		}
 	}
 
@@ -222,7 +251,7 @@ void PuddingWindow::WatchSession(const wchar_t * szCode, DWORD dwCode)
 	{
 		ExecuteCallback callback = [](const CommandLine & commandLine, DWORD exitCode, std::exception_ptr exception)
 		{
-			::OutputDebugStringW(MessageResource(ID_COMMAND_EXIT, commandLine.ToString().c_str(), exitCode));
+			OutputLog(ID_COMMAND_EXIT, commandLine.ToString().c_str(), exitCode);
 
 			if (exception)
 			{
@@ -232,13 +261,11 @@ void PuddingWindow::WatchSession(const wchar_t * szCode, DWORD dwCode)
 				}
 				catch (const std::system_error & e)
 				{
-					// TDOD: デバッグ中ではない場合はログファイルへ出力するようにする
-					::OutputDebugStringW(MessageResource(ERROR_SYS_EXCEPTION, e.what(), e.code().value()));
+					OutputLog(e);
 				}
 				catch (const std::exception & e)
 				{
-					// TDOD: デバッグ中ではない場合はログファイルへ出力するようにする
-					::OutputDebugStringW(MessageResource(ERROR_STD_EXCEPTION, e.what()));
+					OutputLog(e);
 				}
 			}
 		};

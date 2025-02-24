@@ -47,9 +47,9 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /**/, _In_ LPWS
 	{
 		std::locale::global(std::locale(""));
 
-		if (Parameters parameters(szCmdLine); parameters.size() > 2)
+		if (Parameters args(szCmdLine); args.size() > 2)
 		{
-			Custard(parameters[0]).PostToSlack(parameters[1], parameters[2]);
+			Custard(args[0]).PostToSlack(args[1], args[2]);
 		}
 
 		return 0;

@@ -3,9 +3,9 @@
 #include <winhttp.h>
 
 #include <format>
-#include <ranges>
-#include <string>
+#include <functional>
 #include <unordered_map>
+#include <stack>
 
 namespace
 {
@@ -32,7 +32,7 @@ namespace
 
 	struct Session : Handle
 	{
-		Session() : Handle(::WinHttpOpen(L"A WinHTTP Example Program/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0))
+		Session() : Handle(::WinHttpOpen(L"A WinHTTP Program Custard/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0))
 		{
 			if (!m_handle)
 			{
@@ -185,70 +185,24 @@ public:
 		request.Send(m_headers.c_str(), content.data(), (uint32_t) content.size());
 		request.Recv();
 
-		// TODO: ステータスコードが 200 以外の場合だけレスポンスヘッダを出力する
-		// TODO: レスポンスヘッダが "Content-Type: application/json" であることを確認してからレスポンスデータを出力する
-		// TODO: レスポンスデータを解析して {"ok":false} の場合、適当な内容の例外を投げる
+		// TODO: ステータスコードが 200 以外の場合、レスポンスデータがあれば見て、適当な内容の例外を投げる
+		// TODO: レスポンスヘッダが "Content-Type: application/json" であることを確認してからレスポンスデータを解析する
+		// TODO: レスポンスが {"ok":false} の場合、適当な内容の例外を投げる
+#if defined(_DEBUG)
+		::OutputDebugStringW(L"=== Response Headers ===\r\n");
 
+		for (auto & [name, value] : request.ResponseHeaders())
 		{
-			::OutputDebugStringW(L"=== Response Headers ===\r\n");
-
-			for (auto & [name, value] : request.ResponseHeaders())
-			{
-				::OutputDebugStringW(std::format(L"{}: {}\n", name, value).c_str());
-			}
-
-			::OutputDebugStringW(L"=== Response Data ===\r\n");
-			::OutputDebugStringW(ConvertFrom(request.ResponseData()).c_str());
-			::OutputDebugStringW(L"\r\n=====================\r\n");
-		}
-	}
-
-private:
-	std::u8string ConvertFrom(std::wstring_view wstr)
-	{
-		const auto wstr_size = (int) wstr.size();
-		const auto utf8_size = ::WideCharToMultiByte(CP_UTF8, 0, wstr.data(), wstr_size, nullptr, 0, nullptr, nullptr);
-
-		if (utf8_size <= 0)
-		{
-			throw std::system_error(::GetLastError(), std::system_category(), "WideCharToMultiByte");
+			::OutputDebugStringW(std::format(L"{}: {}\n", name, value).c_str());
 		}
 
-		std::u8string utf8(utf8_size, '\0');
-
-		if (::WideCharToMultiByte(CP_UTF8, 0, wstr.data(), wstr_size, (char *) utf8.data(), utf8_size, nullptr, nullptr) == 0)
-		{
-			throw std::system_error(::GetLastError(), std::system_category(), "WideCharToMultiByte");
-		}
-
-		return utf8;
-	}
-
-	std::wstring ConvertFrom(std::u8string_view utf8)
-	{
-		const auto utf8_size = (int) utf8.size();
-		const auto wstr_size = ::MultiByteToWideChar(CP_UTF8, 0, (const char *) utf8.data(), utf8_size, nullptr, 0);
-
-		if (wstr_size <= 0)
-		{
-			throw std::system_error(::GetLastError(), std::system_category(), "MultiByteToWideChar");
-		}
-
-		std::wstring wstr(wstr_size, L'\0');
-
-		if (::MultiByteToWideChar(CP_UTF8, 0, (const char *) utf8.data(), utf8_size, wstr.data(), wstr_size) == 0)
-		{
-			throw std::system_error(::GetLastError(), std::system_category(), "MultiByteToWideChar");
-		}
-
-		return wstr;
-	}
-
-	std::wstring ConvertFrom(const std::vector<std::byte> & data)
-	{
-		return ConvertFrom({ (const char8_t *) data.data(), data.size() });
+		::OutputDebugStringW(L"=== Response Data ===\r\n");
+		::OutputDebugStringW(ConvertFrom(request.ResponseData()).c_str());
+		::OutputDebugStringW(L"\r\n=====================\r\n");
+#endif
 	}
 };
+
 
 Custard::Custard(std::wstring_view token) : m_context(std::make_unique<CustardContext>(L"slack.com", token))
 {}
@@ -259,4 +213,274 @@ Custard::~Custard() noexcept
 void Custard::PostToSlack(std::wstring_view channel, std::wstring_view message)
 {
 	m_context->Post(L"/api/chat.postMessage", std::format(L"channel={}&text={}", channel, message));
+}
+
+
+class JsonContext : public std::enable_shared_from_this<JsonContext>
+{
+	const wchar_t * txt;
+	const wchar_t * end;
+
+	enum state { object, array };
+	std::stack<state> current;
+
+public:
+	JsonContext(std::wstring_view json) : txt(json.data()), end(json.data() + json.size())
+	{}
+
+	std::variant<std::monostate, std::pair<std::wstring, Json>, Json, std::wstring> Parse()
+	{
+		if (SkipWhiteSpace())
+		{
+			switch (*txt++)
+			{
+			case L'{':
+				if (SkipWhiteSpace() && *txt != L'}')
+				{
+					current.push(state::object);
+					return ParseKeyValue();
+				}
+				break;
+
+			case L'[':
+				if (SkipWhiteSpace() && *txt != L']')
+				{
+					current.push(state::array);
+					return Json(shared_from_this());
+				}
+				break;
+
+			case L'}':
+			case L']':
+				current.pop();
+				break;
+
+			case L',':
+				if (SkipWhiteSpace())
+				{
+					if (*txt == L'}' || *txt == L']')
+					{
+						current.pop();
+						++txt;
+					}
+					else if (!current.empty() && current.top() == state::object)
+					{
+						return ParseKeyValue();
+					}
+					else
+					{
+						return Json(shared_from_this());
+					}
+				}
+				break;
+
+			case L'"':
+				return ParseQuotedString();
+
+			default:
+				return ParseUnquotedString();
+			}
+		}
+
+		return std::monostate();
+	}
+
+private:
+	std::pair<std::wstring, Json> ParseKeyValue()
+	{
+		auto key = ParseString();
+
+		if (SkipWhiteSpaceTo(L':'))
+		{
+			++txt;
+
+			return { key, Json(shared_from_this()) };
+		}
+
+		throw new std::invalid_argument("Key value pair expected.");
+	}
+
+	std::wstring ParseString()
+	{
+		if (*txt == L'"')
+		{
+			++txt;
+
+			return ParseQuotedString();
+		}
+		else
+		{
+			return ParseUnquotedString();
+		}
+	}
+
+	std::wstring ParseQuotedString()
+	{
+		auto begin = txt;
+
+		if (SkipToEndOfQuotedString())
+		{
+			return { begin, txt++ };
+		}
+
+		throw new std::invalid_argument("Unterminated string.");
+	}
+
+	std::wstring ParseUnquotedString()
+	{
+		auto begin = txt;
+
+		if (SkipToEndUnquotedString())
+		{
+			return { begin, txt };
+		}
+
+		return { begin, end };
+	}
+
+	bool SkipWhiteSpace()
+	{
+		while (txt < end)
+		{
+			if (iswgraph(*txt))
+			{
+				return true;
+			}
+
+			++txt;
+		}
+
+		return false;
+	}
+
+	bool SkipWhiteSpaceTo(wchar_t ch)
+	{
+		while (txt < end)
+		{
+			if (*txt == ch)
+			{
+				return true;
+			}
+
+			if (iswgraph(*txt))
+			{
+				return false;
+			}
+
+			++txt;
+		}
+
+		return false;
+	}
+
+	bool SkipToEndOfQuotedString()
+	{
+		while (txt < end)
+		{
+			if (*txt == L'"')
+			{
+				return true;
+			}
+
+			if (*txt == L'\\')
+			{
+				++txt;
+
+				if (wcschr(LR"("\/bfnrtu)", *txt) == nullptr)
+				{
+					throw new std::invalid_argument("Invalid escape sequence.");
+				}
+			}
+
+			++txt;
+		}
+
+		return false;
+	}
+
+	bool SkipToEndUnquotedString()
+	{
+		while (txt < end)
+		{
+			if (wcschr(LR"(,[]{})", *txt))
+			{
+				return true;
+			}
+
+			if (!iswgraph(*txt))
+			{
+				return true;
+			}
+
+			if (*txt == L'\\')
+			{
+				++txt;
+
+				if (wcschr(LR"("\/bfnrtu)", *txt) == nullptr)
+				{
+					throw new std::invalid_argument("Invalid escape sequence.");
+				}
+			}
+
+			++txt;
+		}
+
+		return false;
+	}
+};
+
+
+Json::Json(std::shared_ptr<JsonContext> context) : m_context(context)
+{}
+
+Json::Json(std::wstring_view json) : m_context(std::make_shared<JsonContext>(json))
+{}
+
+Json::~Json() noexcept
+{}
+
+std::variant<std::monostate, std::pair<std::wstring, Json>, Json, std::wstring> Json::Parse()
+{
+	return m_context->Parse();
+}
+
+
+std::u8string ConvertFrom(std::wstring_view wstr)
+{
+	const auto wstr_size = (int) wstr.size();
+	const auto utf8_size = ::WideCharToMultiByte(CP_UTF8, 0, wstr.data(), wstr_size, nullptr, 0, nullptr, nullptr);
+
+	if (utf8_size <= 0)
+	{
+		throw std::system_error(::GetLastError(), std::system_category(), "WideCharToMultiByte");
+	}
+
+	std::u8string utf8(utf8_size, '\0');
+
+	if (::WideCharToMultiByte(CP_UTF8, 0, wstr.data(), wstr_size, (char *) utf8.data(), utf8_size, nullptr, nullptr) == 0)
+	{
+		throw std::system_error(::GetLastError(), std::system_category(), "WideCharToMultiByte");
+	}
+
+	return utf8;
+}
+
+std::wstring ConvertFrom(std::u8string_view utf8)
+{
+	const auto utf8_size = (int) utf8.size();
+	const auto wstr_size = ::MultiByteToWideChar(CP_UTF8, 0, (const char *) utf8.data(), utf8_size, nullptr, 0);
+
+	if (wstr_size <= 0)
+	{
+		throw std::system_error(::GetLastError(), std::system_category(), "MultiByteToWideChar");
+	}
+
+	std::wstring wstr(wstr_size, L'\0');
+
+	if (::MultiByteToWideChar(CP_UTF8, 0, (const char *) utf8.data(), utf8_size, wstr.data(), wstr_size) == 0)
+	{
+		throw std::system_error(::GetLastError(), std::system_category(), "MultiByteToWideChar");
+	}
+
+	return wstr;
 }

@@ -216,6 +216,86 @@ void Custard::PostToSlack(std::wstring_view channel, std::wstring_view message)
 }
 
 
+static wchar_t DecodeUnicodeEscapeSequence(const wchar_t *& ptr, const wchar_t * end)
+{
+	if ((end - ptr) >= 4)
+	{
+		static constexpr wchar_t hex[] = L"0123456789ABCDEF";
+
+		wchar_t ch = 0;
+
+		for (int i = 0; i < 4; ++i)
+		{
+			if (auto pos = wcschr(hex, towupper(*ptr++)))
+			{
+				ch <<= 4;
+				ch |= (unsigned char) (pos - hex);
+			}
+			else
+			{
+				throw new std::invalid_argument("Invalid escape sequence.");
+			}
+		}
+
+		return ch;
+	}
+
+	throw new std::invalid_argument("Invalid escape sequence.");
+}
+
+static std::wstring UnescapeString(const wchar_t * ptr, const wchar_t * end)
+{
+	std::wstring buff;
+
+	buff.reserve(end - ptr);
+
+	while (ptr < end)
+	{
+		if (*ptr == L'\\')
+		{
+			++ptr;
+
+			switch (*ptr++)
+			{
+			case L'"':
+				buff.push_back(L'"');
+				continue;
+			case L'/':
+				buff.push_back(L'/');
+				continue;
+			case L'\\':
+				buff.push_back(L'\\');
+				continue;
+			case L'b':
+				buff.push_back(L'\b');
+				continue;
+			case L'f':
+				buff.push_back(L'\f');
+				continue;
+			case L'n':
+				buff.push_back(L'\n');
+				continue;
+			case L'r':
+				buff.push_back(L'\r');
+				continue;
+			case L't':
+				buff.push_back(L'\t');
+				continue;
+			case L'u':
+				buff.push_back(DecodeUnicodeEscapeSequence(ptr, end));
+				continue;
+			default:
+				throw new std::invalid_argument("Invalid escape sequence.");
+			}
+		}
+
+		buff.push_back(*ptr++);
+	}
+
+	return buff;
+}
+
+
 class JsonContext : public std::enable_shared_from_this<JsonContext>
 {
 	const wchar_t * txt;
@@ -227,6 +307,16 @@ class JsonContext : public std::enable_shared_from_this<JsonContext>
 public:
 	JsonContext(std::wstring_view json) : txt(json.data()), end(json.data() + json.size())
 	{}
+
+	bool IsObject()
+	{
+		return SkipWhiteSpace() && (*txt == L'{');
+	}
+
+	bool IsArray()
+	{
+		return SkipWhiteSpace() && (*txt == L'[');
+	}
 
 	std::variant<std::monostate, std::pair<std::wstring, Json>, Json, std::wstring> Parse()
 	{
@@ -278,6 +368,7 @@ public:
 				return ParseQuotedString();
 
 			default:
+				--txt;
 				return ParseUnquotedString();
 			}
 		}
@@ -320,7 +411,7 @@ private:
 
 		if (SkipToEndOfQuotedString())
 		{
-			return { begin, txt++ };
+			return UnescapeString(begin, txt++);
 		}
 
 		throw new std::invalid_argument("Unterminated string.");
@@ -332,7 +423,7 @@ private:
 
 		if (SkipToEndUnquotedString())
 		{
-			return { begin, txt };
+			return UnescapeString(begin, txt);
 		}
 
 		return { begin, end };
@@ -386,7 +477,7 @@ private:
 			{
 				++txt;
 
-				if (wcschr(LR"("\/bfnrtu)", *txt) == nullptr)
+				if (wcschr(LR"("/\bfnrtu)", *txt) == nullptr)
 				{
 					throw new std::invalid_argument("Invalid escape sequence.");
 				}
@@ -416,7 +507,7 @@ private:
 			{
 				++txt;
 
-				if (wcschr(LR"("\/bfnrtu)", *txt) == nullptr)
+				if (wcschr(LR"("/\bfnrtu)", *txt) == nullptr)
 				{
 					throw new std::invalid_argument("Invalid escape sequence.");
 				}
@@ -438,6 +529,16 @@ Json::Json(std::wstring_view json) : m_context(std::make_shared<JsonContext>(jso
 
 Json::~Json() noexcept
 {}
+
+bool Json::IsObject() const
+{
+	return m_context->IsObject();
+}
+
+bool Json::IsArray() const
+{
+	return m_context->IsArray();
+}
 
 std::variant<std::monostate, std::pair<std::wstring, Json>, Json, std::wstring> Json::Parse()
 {

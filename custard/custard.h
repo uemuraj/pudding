@@ -36,6 +36,9 @@ public:
 	Json(std::wstring_view json);
 	~Json() noexcept;
 
+	bool IsObject() const;
+	bool IsArray() const;
+
 	std::variant<std::monostate, std::pair<std::wstring, Json>, Json, std::wstring> Parse();
 };
 

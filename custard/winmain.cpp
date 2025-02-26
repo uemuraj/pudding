@@ -2,7 +2,7 @@
 #include <shellapi.h>
 
 #include <locale>
-#include "custard.h"
+#include <system_error>
 
 
 class Parameters
@@ -36,10 +36,12 @@ public:
 
 	const wchar_t * operator[](size_t index) const noexcept
 	{
-		return (index < m_argc) ? m_argv[index] : L"";
+		return m_argv[index];
 	}
 };
 
+
+#include "custard.h"
 
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /**/, _In_ LPWSTR szCmdLine, _In_ int nCmdShow)
 {

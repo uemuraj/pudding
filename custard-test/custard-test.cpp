@@ -1,5 +1,7 @@
 #include "pch.h"
-#include <custard.h>
+
+#include <json.h>
+#include <wconv.h>
 
 TEST(CustardTest, ConvertFromWstring)
 {

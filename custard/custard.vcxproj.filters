@@ -2,9 +2,13 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClInclude Include="custard.h" />
+    <ClInclude Include="json.h" />
+    <ClInclude Include="wconv.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="custard.cpp" />
     <ClCompile Include="winmain.cpp" />
+    <ClCompile Include="json.cpp" />
+    <ClCompile Include="wconv.cpp" />
   </ItemGroup>
 </Project>

@@ -1,35 +1,43 @@
 #include "json.h"
 
 #include <stdexcept>
-#include <cwchar>
-#include <cctype>
 #include <stack>
 
-static wchar_t DecodeUnicodeEscapeSequence(const wchar_t *& ptr, const wchar_t * end)
+static wchar_t ValidateEscapeChar(wchar_t ch)
 {
-	if ((end - ptr) >= 4)
+	switch (ch)
 	{
-		static constexpr wchar_t hex[] = L"0123456789ABCDEF";
-
-		wchar_t ch = 0;
-
-		for (int i = 0; i < 4; ++i)
-		{
-			if (auto pos = wcschr(hex, towupper(*ptr++)))
-			{
-				ch <<= 4;
-				ch |= (unsigned char) (pos - hex);
-			}
-			else
-			{
-				throw new std::invalid_argument("Invalid escape sequence.");
-			}
-		}
-
+	case L'"':
+	case L'\\':
+	case L'/':
 		return ch;
+	case L'b':
+		return L'\b';
+	case L'f':
+		return L'\f';
+	case L'n':
+		return L'\n';
+	case L'r':
+		return L'\r';
+	case L't':
+		return L'\t';
+	case L'u':
+		return L'\0';
+	default:
+		throw new std::invalid_argument("Invalid escape character.");
+	}
+}
+
+static std::uint16_t FromHexChar(wchar_t ch)
+{
+	static constexpr wchar_t hexChars[] = L"0123456789ABCDEF";
+
+	if (auto pos = wcschr(hexChars, towupper(ch)))
+	{
+		return (std::uint16_t) (pos - hexChars);
 	}
 
-	throw new std::invalid_argument("Invalid escape sequence.");
+	throw new std::invalid_argument("Invalid hex character.");
 }
 
 static std::wstring UnescapeString(const wchar_t * ptr, const wchar_t * end)
@@ -40,50 +48,34 @@ static std::wstring UnescapeString(const wchar_t * ptr, const wchar_t * end)
 
 	while (ptr < end)
 	{
-		if (*ptr == L'\\')
-		{
-			++ptr;
+		auto ch = *ptr++;
 
-			switch (*ptr++)
+		if (ch == L'\\')
+		{
+			ch = ValidateEscapeChar(*ptr++);
+
+			if (ch == L'\0')
 			{
-			case L'"':
-				buff.push_back(L'"');
-				continue;
-			case L'/':
-				buff.push_back(L'/');
-				continue;
-			case L'\\':
-				buff.push_back(L'\\');
-				continue;
-			case L'b':
-				buff.push_back(L'\b');
-				continue;
-			case L'f':
-				buff.push_back(L'\f');
-				continue;
-			case L'n':
-				buff.push_back(L'\n');
-				continue;
-			case L'r':
-				buff.push_back(L'\r');
-				continue;
-			case L't':
-				buff.push_back(L'\t');
-				continue;
-			case L'u':
-				buff.push_back(DecodeUnicodeEscapeSequence(ptr, end));
-				continue;
-			default:
-				throw new std::invalid_argument("Invalid escape sequence.");
+				if ((end - ptr) < 4)
+				{
+					throw new std::invalid_argument("Invalid escape sequence.");
+				}
+
+				ch |= FromHexChar(*ptr++);
+				ch <<= 4;
+				ch |= FromHexChar(*ptr++);
+				ch <<= 4;
+				ch |= FromHexChar(*ptr++);
+				ch <<= 4;
+				ch |= FromHexChar(*ptr++);
 			}
 		}
 
-		buff.push_back(*ptr++);
+		buff.push_back(ch);
 	}
 
 	return buff;
 }
-
 
 class JsonContext : public std::enable_shared_from_this<JsonContext>
 {
@@ -154,11 +146,11 @@ public:
 				break;
 
 			case L'"':
-				return ParseQuotedString();
+				return QuotedString();
 
 			default:
 				--txt;
-				return ParseUnquotedString();
+				return UnquotedString();
 			}
 		}
 
@@ -166,58 +158,6 @@ public:
 	}
 
 private:
-	std::pair<std::wstring, Json> ParseKeyValue()
-	{
-		auto key = ParseString();
-
-		if (SkipWhiteSpaceTo(L':'))
-		{
-			++txt;
-
-			return { key, Json(shared_from_this()) };
-		}
-
-		throw new std::invalid_argument("Key value pair expected.");
-	}
-
-	std::wstring ParseString()
-	{
-		if (*txt == L'"')
-		{
-			++txt;
-
-			return ParseQuotedString();
-		}
-		else
-		{
-			return ParseUnquotedString();
-		}
-	}
-
-	std::wstring ParseQuotedString()
-	{
-		auto begin = txt;
-
-		if (SkipToEndOfQuotedString())
-		{
-			return UnescapeString(begin, txt++);
-		}
-
-		throw new std::invalid_argument("Unterminated string.");
-	}
-
-	std::wstring ParseUnquotedString()
-	{
-		auto begin = txt;
-
-		if (SkipToEndUnquotedString())
-		{
-			return UnescapeString(begin, txt);
-		}
-
-		return { begin, end };
-	}
-
 	bool SkipWhiteSpace()
 	{
 		while (txt < end)
@@ -253,59 +193,82 @@ private:
 		return false;
 	}
 
-	bool SkipToEndOfQuotedString()
+	std::pair<std::wstring, Json> ParseKeyValue()
 	{
+		auto key = ParseString();
+
+		if (SkipWhiteSpaceTo(L':'))
+		{
+			++txt;
+			return { key, Json(shared_from_this()) };
+		}
+
+		throw new std::invalid_argument("Key value pair expected.");
+	}
+
+	std::wstring ParseString()
+	{
+		if (*txt == L'"')
+		{
+			++txt;
+			return QuotedString();
+		}
+
+		return UnquotedString();
+	}
+
+	std::wstring QuotedString()
+	{
+		bool escape = false;
+		auto begin = txt;
+
 		while (txt < end)
 		{
 			if (*txt == L'"')
 			{
-				return true;
-			}
-
-			if (*txt == L'\\')
-			{
-				++txt;
-
-				if (wcschr(LR"("/\bfnrtu)", *txt) == nullptr)
+				if (!escape)
 				{
-					throw new std::invalid_argument("Invalid escape sequence.");
+					return { begin, txt++ };
 				}
+
+				return UnescapeString(begin, txt++);
 			}
 
-			++txt;
+			if (*txt++ == L'\\')
+			{
+				ValidateEscapeChar(*txt++);
+				escape = true;
+			}
 		}
 
-		return false;
+		throw new std::invalid_argument("Unterminated string.");
 	}
 
-	bool SkipToEndUnquotedString()
+	std::wstring UnquotedString()
 	{
+		bool escape = false;
+		auto begin = txt;
+
 		while (txt < end)
 		{
-			if (wcschr(LR"(,[]{})", *txt))
+			if (wcschr(LR"(,[]{})", *txt) || !iswgraph(*txt))
 			{
-				return true;
-			}
-
-			if (!iswgraph(*txt))
-			{
-				return true;
-			}
-
-			if (*txt == L'\\')
-			{
-				++txt;
-
-				if (wcschr(LR"("/\bfnrtu)", *txt) == nullptr)
+				if (!escape)
 				{
-					throw new std::invalid_argument("Invalid escape sequence.");
+					return { begin, txt };
 				}
+
+				return UnescapeString(begin, txt);
 			}
 
-			++txt;
+			if (*txt++ == L'\\')
+			{
+				ValidateEscapeChar(*txt++);
+				escape = true;
+			}
 		}
 
-		return false;
+		return { begin, end };
 	}
 };
 

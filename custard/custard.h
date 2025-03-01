@@ -14,5 +14,5 @@ public:
 	Custard(std::wstring_view token);
 	~Custard() noexcept;
 
-	void PostToSlack(std::wstring_view channel, std::wstring_view message);
+	bool PostToSlack(std::wstring_view channel, std::wstring_view message);
 };

@@ -51,10 +51,13 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /**/, _In_ LPWS
 
 		if (Parameters args(szCmdLine); args.size() > 2)
 		{
-			Custard(args[0]).PostToSlack(args[1], args[2]);
+			if (Custard(args[0]).PostToSlack(args[1], args[2]))
+			{
+				return 0;
+			}
 		}
 
-		return 0;
+		return 1;
 	}
 	catch (const std::system_error & e)
 	{
@@ -65,5 +68,5 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /**/, _In_ LPWS
 		::MessageBoxA(nullptr, e.what(), VS_TARGETNAMEA, MB_ICONERROR);
 	}
 
-	return 1;
+	return 2;
 }

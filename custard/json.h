@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <variant>
 
 class JsonContext;
@@ -18,6 +19,9 @@ public:
 
 	bool IsObject() const;
 	bool IsArray() const;
+	bool Empty() const;
 
 	std::variant<std::monostate, std::pair<std::wstring, Json>, Json, std::wstring> Parse();
 };
+
+// TODO: u8string ‚ğ’¼Úˆ—‚Å‚«‚é‚æ‚¤‚É‚·‚é

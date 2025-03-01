@@ -2,7 +2,7 @@
 #include <winhttp.h>
 
 #include <format>
-#include <unordered_map>
+#include <optional>
 #include <system_error>
 
 #include "custard.h"
@@ -81,46 +81,48 @@ namespace
 			}
 		}
 
-		int StatusCode()
+		std::wstring ResponseHeaders()
 		{
-			DWORD code = 0;
-			DWORD size = sizeof(code);
+			DWORD size = 0;
 
-			if (!::WinHttpQueryHeaders(m_handle, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, nullptr, &code, &size, nullptr))
+			if (!::WinHttpQueryHeaders(m_handle, WINHTTP_QUERY_RAW_HEADERS_CRLF, nullptr, nullptr, &size, nullptr))
+			{
+				if (auto error = GetLastError(); error != ERROR_INSUFFICIENT_BUFFER)
+				{
+					throw std::system_error(error, std::system_category(), "WinHttpQueryHeaders");
+				}
+			}
+
+			std::wstring buffer(size / sizeof(wchar_t) - 1, L'\0');
+
+			if (!::WinHttpQueryHeaders(m_handle, WINHTTP_QUERY_RAW_HEADERS_CRLF, nullptr, buffer.data(), &size, nullptr))
 			{
 				throw std::system_error(::GetLastError(), std::system_category(), "WinHttpQueryHeaders");
 			}
 
-			return (int) code;
+			return buffer;
 		}
 
-		std::unordered_map<std::wstring, std::wstring> ResponseHeaders()
+		std::wstring ContentType()
 		{
 			DWORD size = 0;
-			DWORD count = 0;
 
-			if (auto error = ::WinHttpQueryHeadersEx(m_handle, WINHTTP_QUERY_RAW_HEADERS, 0ull, 0, nullptr, nullptr, nullptr, &size, nullptr, &count); error != ERROR_INSUFFICIENT_BUFFER)
+			if (!::WinHttpQueryHeaders(m_handle, WINHTTP_QUERY_CONTENT_TYPE, nullptr, nullptr, &size, nullptr))
 			{
-				throw std::system_error(error, std::system_category(), "WinHttpQueryHeadersEx");
+				if (auto error = GetLastError(); error != ERROR_INSUFFICIENT_BUFFER)
+				{
+					throw std::system_error(error, std::system_category(), "WinHttpQueryHeaders");
+				}
 			}
 
-			auto buff = std::make_unique<BYTE[]>(size);
+			std::wstring buff(size / sizeof(wchar_t) - 1, L'\0');
 
-			WINHTTP_EXTENDED_HEADER * headers = nullptr;
-
-			if (auto error = ::WinHttpQueryHeadersEx(m_handle, WINHTTP_QUERY_RAW_HEADERS, 0ull, 0, nullptr, nullptr, buff.get(), &size, &headers, &count); error != ERROR_SUCCESS)
+			if (!::WinHttpQueryHeaders(m_handle, WINHTTP_QUERY_CONTENT_TYPE, nullptr, buff.data(), &size, nullptr))
 			{
-				throw std::system_error(error, std::system_category(), "WinHttpQueryHeadersEx");
+				throw std::system_error(::GetLastError(), std::system_category(), "WinHttpQueryHeaders");
 			}
 
-			std::unordered_map<std::wstring, std::wstring> map;
-
-			for (auto & header : std::ranges::subrange(headers, headers + count))
-			{
-				map[header.pwszName] = header.pwszValue;
-			}
-
-			return map;
+			return buff;
 		}
 
 		std::vector<std::byte> ResponseData()
@@ -167,42 +169,87 @@ namespace
 // https://api.slack.com/tutorials/tracks/posting-messages-with-curl
 //
 
+struct SlackResult
+{
+	std::optional<bool> ok;
+
+	void operator()(std::monostate)
+	{
+		// do nothing
+	}
+
+	void operator()(Json & json)
+	{
+		while (!json.Empty())
+		{
+			auto parsed = json.Parse();
+			std::visit(*this, parsed);
+		}
+	}
+
+	void operator()(std::pair<std::wstring, Json> & pair)
+	{
+		auto & [key, value] = pair;
+
+		if (key == L"ok")
+		{
+			ok = (std::get<std::wstring>(value.Parse()) == L"true");
+		}
+	}
+
+	void operator()(std::wstring & str)
+	{
+#if defined(_DEBUG)
+		::OutputDebugStringW(str.c_str());
+		::OutputDebugStringW(L"\r\n");
+#endif
+	}
+};
+
 class CustardContext
 {
 	Session m_session;
 	Connection m_connection;
-	std::wstring m_headers;
+	std::wstring m_request;
 
 public:
 	CustardContext(const wchar_t * server, std::wstring_view token) : m_connection(m_session, server)
 	{
-		m_headers = std::format(L"Authorization: Bearer {}\r\n", token);
-		m_headers += L"Content-Type: application/x-www-form-urlencoded\r\n";
+		m_request = std::format(L"Authorization: Bearer {}\r\n", token);
+		m_request += L"Content-Type: application/x-www-form-urlencoded\r\n";
 	}
 
-	void Post(const wchar_t * path, std::wstring_view data)
+	bool Post(const wchar_t * path, std::wstring_view data)
 	{
 		auto content = ConvertFrom(data);
 
 		Request request(m_connection, L"POST", path);
-		request.Send(m_headers.c_str(), content.data(), (uint32_t) content.size());
+		request.Send(m_request.c_str(), content.data(), (uint32_t) content.size());
 		request.Recv();
 
-		// TODO: ステータスコードが 200 以外の場合、レスポンスデータがあれば見て、適当な内容の例外を投げる
-		// TODO: レスポンスヘッダが "Content-Type: application/json" であることを確認してからレスポンスデータを解析する
-		// TODO: レスポンスが {"ok":false} の場合、適当な内容の例外を投げる
 #if defined(_DEBUG)
-		::OutputDebugStringW(L"=== Response Headers ===\r\n");
+		::OutputDebugStringW(L"=== Response ===\r\n");
+		::OutputDebugStringW(request.ResponseHeaders().c_str());
+#endif
+		auto response = request.ResponseData();
 
-		for (auto & [name, value] : request.ResponseHeaders())
+		if (request.ContentType().starts_with(L"application/json"))
 		{
-			::OutputDebugStringW(std::format(L"{}: {}\n", name, value).c_str());
+			auto text = ConvertFrom(response);
+			auto json = Json(text).Parse();
+
+			SlackResult result;
+			std::visit(result, json);
+
+			if (result.ok.has_value())
+			{
+				return result.ok.value();
+			}
 		}
 
-		::OutputDebugStringW(L"=== Response Data ===\r\n");
-		::OutputDebugStringW(ConvertFrom(request.ResponseData()).c_str());
-		::OutputDebugStringW(L"\r\n=====================\r\n");
-#endif
+		// TODO: 例外に適切な情報を含める
+
+		throw std::runtime_error("Unexpected response.");
 	}
 };
 
@@ -213,7 +260,7 @@ Custard::Custard(std::wstring_view token) : m_context(std::make_unique<CustardCo
 Custard::~Custard() noexcept
 {}
 
-void Custard::PostToSlack(std::wstring_view channel, std::wstring_view message)
+bool Custard::PostToSlack(std::wstring_view channel, std::wstring_view message)
 {
-	m_context->Post(L"/api/chat.postMessage", std::format(L"channel={}&text={}", channel, message));
+	return m_context->Post(L"/api/chat.postMessage", std::format(L"channel={}&text={}", channel, message));
 }

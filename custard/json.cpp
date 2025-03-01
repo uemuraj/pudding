@@ -99,6 +99,11 @@ public:
 		return SkipWhiteSpace() && (*txt == L'[');
 	}
 
+	bool Empty()
+	{
+		return !SkipWhiteSpace();
+	}
+
 	std::variant<std::monostate, std::pair<std::wstring, Json>, Json, std::wstring> Parse()
 	{
 		if (SkipWhiteSpace())
@@ -290,6 +295,11 @@ bool Json::IsObject() const
 bool Json::IsArray() const
 {
 	return m_context->IsArray();
+}
+
+bool Json::Empty() const
+{
+	return m_context->Empty();
 }
 
 std::variant<std::monostate, std::pair<std::wstring, Json>, Json, std::wstring> Json::Parse()

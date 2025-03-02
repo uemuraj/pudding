@@ -236,10 +236,10 @@ public:
 		if (request.ContentType().starts_with(L"application/json"))
 		{
 			auto text = ConvertFrom(response);
-			auto json = Json(text).Parse();
+			auto json = Json(text);
 
 			SlackResult result;
-			std::visit(result, json);
+			result(json);
 
 			if (result.ok.has_value())
 			{

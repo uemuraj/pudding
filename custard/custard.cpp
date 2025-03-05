@@ -173,18 +173,15 @@ struct SlackResult
 {
 	std::optional<bool> ok;
 
-	void operator()(std::monostate)
+	void operator()(Json::State)
 	{
 		// do nothing
 	}
 
 	void operator()(Json & json)
 	{
-		while (!json.Empty())
-		{
-			auto parsed = json.Parse();
-			std::visit(*this, parsed);
-		}
+		auto parsed = json.Parse();
+		std::visit(*this, parsed);
 	}
 
 	void operator()(std::pair<std::wstring, Json> & pair)

@@ -77,92 +77,89 @@ static std::wstring UnescapeString(const wchar_t * ptr, const wchar_t * end)
 	return buff;
 }
 
+
 class JsonContext : public std::enable_shared_from_this<JsonContext>
 {
 	const wchar_t * txt;
 	const wchar_t * end;
 
-	enum state { object, array };
-	std::stack<state> current;
+	std::stack<Json::State> current;
+	bool firstElement;
 
 public:
-	JsonContext(std::wstring_view json) : txt(json.data()), end(json.data() + json.size())
+	JsonContext(std::wstring_view json) : txt(json.data()), end(json.data() + json.size()), firstElement(false)
 	{}
 
-	bool IsObject()
-	{
-		return SkipWhiteSpace() && (*txt == L'{');
-	}
-
-	bool IsArray()
-	{
-		return SkipWhiteSpace() && (*txt == L'[');
-	}
-
-	bool Empty()
-	{
-		return !SkipWhiteSpace();
-	}
-
-	std::variant<std::monostate, std::pair<std::wstring, Json>, Json, std::wstring> Parse()
+	std::variant<Json::State, std::pair<std::wstring, Json>, Json, std::wstring> Parse(int & nesting)
 	{
 		if (SkipWhiteSpace())
 		{
 			switch (*txt++)
 			{
 			case L'{':
-				if (SkipWhiteSpace() && *txt != L'}')
-				{
-					current.push(state::object);
-					return ParseKeyValue();
-				}
-				break;
+				current.push(Json::State::Object), ++nesting;
+				firstElement = true;
+				return Json::State::Object;
 
 			case L'[':
-				if (SkipWhiteSpace() && *txt != L']')
-				{
-					current.push(state::array);
-					return Json(shared_from_this());
-				}
-				break;
+				current.push(Json::State::Array), ++nesting;
+				firstElement = true;
+				return Json::State::Array;
 
 			case L'}':
 			case L']':
-				current.pop();
-				break;
+				current.pop(), --nesting;
+				return (nesting > 0) ? Json::State::Next : Json::State::End;
 
 			case L',':
-				if (SkipWhiteSpace())
-				{
-					if (*txt == L'}' || *txt == L']')
-					{
-						current.pop();
-						++txt;
-					}
-					else if (!current.empty() && current.top() == state::object)
-					{
-						return ParseKeyValue();
-					}
-					else
-					{
-						return Json(shared_from_this());
-					}
-				}
-				break;
+				return Next(nesting);
 
 			case L'"':
+				if (std::exchange(firstElement, false))
+				{
+					--txt;
+					return Next(nesting);
+				}
 				return QuotedString();
 
 			default:
 				--txt;
+				if (std::exchange(firstElement, false))
+				{
+					return Next(nesting);
+				}
 				return UnquotedString();
 			}
 		}
 
-		return std::monostate();
+		return Json::State::End;
 	}
 
 private:
+	std::variant<Json::State, std::pair<std::wstring, Json>, Json, std::wstring> Next(int & nesting)
+	{
+		if (SkipWhiteSpace())
+		{
+			if (*txt == L'}' || *txt == L']')
+			{
+				++txt;
+				current.pop(), --nesting;
+				return (nesting > 0) ? Json::State::Next : Json::State::End;
+			}
+
+			if (current.empty() || current.top() == Json::State::Array)
+			{
+				return Parse(nesting);
+			}
+			else
+			{
+				return ParseKeyValue();
+			}
+		}
+
+		return Json::State::End;
+	}
+
 	bool SkipWhiteSpace()
 	{
 		while (txt < end)
@@ -278,31 +275,16 @@ private:
 };
 
 
-Json::Json(std::shared_ptr<JsonContext> context) : m_context(context)
+Json::Json(std::shared_ptr<JsonContext> context) : m_context(context), m_nesting(0)
 {}
 
-Json::Json(std::wstring_view json) : m_context(std::make_shared<JsonContext>(json))
+Json::Json(std::wstring_view json) : m_context(std::make_shared<JsonContext>(json)), m_nesting(0)
 {}
 
 Json::~Json() noexcept
 {}
 
-bool Json::IsObject() const
+std::variant<Json::State, std::pair<std::wstring, Json>, Json, std::wstring> Json::Parse()
 {
-	return m_context->IsObject();
-}
-
-bool Json::IsArray() const
-{
-	return m_context->IsArray();
-}
-
-bool Json::Empty() const
-{
-	return m_context->Empty();
-}
-
-std::variant<std::monostate, std::pair<std::wstring, Json>, Json, std::wstring> Json::Parse()
-{
-	return m_context->Parse();
+	return m_context->Parse(m_nesting);
 }

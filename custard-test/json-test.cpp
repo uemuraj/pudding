@@ -83,7 +83,7 @@ struct ResponseType1
 
 			if (key == L"warnings")
 			{
-				std::visit(*this, value.Parse());
+				while (std::visit(*this, value.Parse())) /**/;
 			}
 
 			return true;
@@ -174,6 +174,178 @@ TEST(ParseJsonTest, ResponseType1)
 struct ResponseType2
 {
 	std::optional<bool> ok;
+
+	struct Message
+	{
+		std::wstring type;
+		std::wstring text;
+
+		struct BotProfile
+		{
+			std::wstring name;
+	
+			struct Icons
+			{
+				std::wstring image36;
+				std::wstring image48;
+				std::wstring image72;
+
+				bool operator()(std::pair<std::wstring, Json> && keyValue)
+				{
+					auto & [key, value] = keyValue;
+
+					if (key == L"image_36")
+					{
+						image36 = std::get<std::wstring>(value.Parse());
+						return true;
+					}
+
+					if (key == L"image_48")
+					{
+						image48 = std::get<std::wstring>(value.Parse());
+						return true;
+					}
+
+					if (key == L"image_72")
+					{
+						image72 = std::get<std::wstring>(value.Parse());
+						return true;
+					}
+
+					return true;
+				}
+
+				bool operator()(Json && value)
+				{
+					return std::visit(*this, value.Parse());
+				}
+
+				bool operator()(std::wstring && value)
+				{
+					return true;
+				}
+
+				bool operator()(Json::State state)
+				{
+					return (state != Json::State::End);
+				}
+			};
+
+			BotProfile::Icons icons;
+
+			bool operator()(std::pair<std::wstring, Json> && keyValue)
+			{
+				auto & [key, value] = keyValue;
+
+				if (key == L"name")
+				{
+					name = std::get<std::wstring>(value.Parse());
+					return true;
+				}
+
+				if (key == L"icons")
+				{
+					while (std::visit(icons, value.Parse())) /**/;
+					return true;
+				}
+
+				return true;
+			}
+
+			bool operator()(Json && value)
+			{
+				return std::visit(*this, value.Parse());
+			}
+
+			bool operator()(std::wstring && value)
+			{
+				return true;
+			}
+
+			bool operator()(Json::State state)
+			{
+				return (state != Json::State::End);
+			}
+		};
+
+		BotProfile botProfile;
+
+		bool operator()(std::pair<std::wstring, Json> && keyValue)
+		{
+			auto & [key, value] = keyValue;
+
+			if (key == L"type")
+			{
+				type = std::get<std::wstring>(value.Parse());
+				return true;
+			}
+
+			if (key == L"text")
+			{
+				text = std::get<std::wstring>(value.Parse());
+				return true;
+			}
+
+			if (key == L"bot_profile")
+			{
+				while (std::visit(botProfile, value.Parse())) /**/;
+				return true;
+			}
+
+			return true;
+		}
+
+		bool operator()(Json && value)
+		{
+			return std::visit(*this, value.Parse());
+		}
+
+		bool operator()(std::wstring && value)
+		{
+			return true;
+		}
+
+		bool operator()(Json::State state)
+		{
+			return (state != Json::State::End);
+		}
+	};
+
+	Message message;
+
+	bool operator()(std::pair<std::wstring, Json> && keyValue)
+	{
+		auto & [key, value] = keyValue;
+
+		if (key == L"ok")
+		{
+			ok = (std::get<std::wstring>(value.Parse()) == L"true");
+			return true;
+		}
+
+		if (key == L"message")
+		{
+			while (std::visit(message, value.Parse())) /**/;
+			return true;
+		}
+
+		return true;
+	}
+
+	bool operator()(Json && value)
+	{
+		return std::visit(*this, value.Parse());
+	}
+
+	bool operator()(std::wstring && value)
+	{
+		return true;
+	}
+
+	bool operator()(Json::State state)
+	{
+		return (state != Json::State::End);
+	}
 };
 
 TEST(ParseJsonTest, ResponseType2)
@@ -199,5 +371,15 @@ TEST(ParseJsonTest, ResponseType2)
 }
 )");
 
-	FAIL();
+	ResponseType2 response;
+
+	while (std::visit(response, json.Parse())) /**/;
+
+	EXPECT_TRUE(response.ok.value());
+	EXPECT_STREQ(response.message.type.c_str(), L"message");
+	EXPECT_STREQ(response.message.text.c_str(), L"新しいチャンネルはどんな感じ？");
+	EXPECT_STREQ(response.message.botProfile.name.c_str(), L"hoge");
+	EXPECT_STREQ(response.message.botProfile.icons.image36.c_str(), L"https://a.slack-edge.com/hoge/img/plugins/app/bot_36.png");
+	EXPECT_STREQ(response.message.botProfile.icons.image48.c_str(), L"https://a.slack-edge.com/hoge/img/plugins/app/bot_48.png");
+	EXPECT_STREQ(response.message.botProfile.icons.image72.c_str(), L"https://a.slack-edge.com/hoge/img/plugins/app/service_72.png");
 }

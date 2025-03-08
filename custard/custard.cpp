@@ -6,8 +6,8 @@
 #include <system_error>
 
 #include "custard.h"
-#include "json.h"
 #include "wconv.h"
+#include "json.h"
 
 namespace
 {
@@ -173,33 +173,12 @@ struct SlackResult
 {
 	std::optional<bool> ok;
 
-	void operator()(Json::State)
+	void operator()(std::wstring && key, Json && value)
 	{
-		// do nothing
-	}
-
-	void operator()(Json & json)
-	{
-		auto parsed = json.Parse();
-		std::visit(*this, parsed);
-	}
-
-	void operator()(std::pair<std::wstring, Json> & pair)
-	{
-		auto & [key, value] = pair;
-
 		if (key == L"ok")
 		{
-			ok = (std::get<std::wstring>(value.Parse()) == L"true");
+			ok = value.GetBool();
 		}
-	}
-
-	void operator()(std::wstring & str)
-	{
-#if defined(_DEBUG)
-		::OutputDebugStringW(str.c_str());
-		::OutputDebugStringW(L"\r\n");
-#endif
 	}
 };
 
@@ -236,8 +215,11 @@ public:
 			auto text = ConvertFrom(response);
 			auto json = Json(text);
 
-			SlackResult result;
-			result(json);
+#if defined(_DEBUG)
+			::OutputDebugStringW(text.c_str());
+			::OutputDebugStringW(L"\r\n");
+#endif
+			auto result = VisitJson<SlackResult>(json);
 
 			if (result.ok.has_value())
 			{

@@ -1,7 +1,20 @@
 #include "json.h"
 
-#include <stdexcept>
 #include <stack>
+#include <stdexcept>
+
+
+static std::uint16_t FromHexChar(wchar_t ch)
+{
+	static constexpr wchar_t hexChars[] = L"0123456789ABCDEF";
+
+	if (auto pos = wcschr(hexChars, towupper(ch)))
+	{
+		return (std::uint16_t) (pos - hexChars);
+	}
+
+	throw new std::invalid_argument("Invalid hex character.");
+}
 
 static wchar_t ValidateEscapeChar(wchar_t ch)
 {
@@ -26,18 +39,6 @@ static wchar_t ValidateEscapeChar(wchar_t ch)
 	default:
 		throw new std::invalid_argument("Invalid escape character.");
 	}
-}
-
-static std::uint16_t FromHexChar(wchar_t ch)
-{
-	static constexpr wchar_t hexChars[] = L"0123456789ABCDEF";
-
-	if (auto pos = wcschr(hexChars, towupper(ch)))
-	{
-		return (std::uint16_t) (pos - hexChars);
-	}
-
-	throw new std::invalid_argument("Invalid hex character.");
 }
 
 static std::wstring UnescapeString(const wchar_t * ptr, const wchar_t * end)
@@ -78,55 +79,51 @@ static std::wstring UnescapeString(const wchar_t * ptr, const wchar_t * end)
 }
 
 
-class JsonContext : public std::enable_shared_from_this<JsonContext>
+struct JsonContext : std::enable_shared_from_this<JsonContext>
 {
 	const wchar_t * txt;
 	const wchar_t * end;
-
+	bool next;
 	std::stack<Json::State> current;
-	bool firstElement;
 
-public:
-	JsonContext(std::wstring_view json) : txt(json.data()), end(json.data() + json.size()), firstElement(false)
+	JsonContext(std::wstring_view json) : txt(json.data()), end(json.data() + json.size()), next(false)
 	{}
 
-	Json::Value Parse(int & nesting)
+	Json::Value Parse(size_t nested)
 	{
 		if (SkipWhiteSpace())
 		{
 			switch (*txt++)
 			{
 			case L'{':
-				current.push(Json::State::Object), ++nesting;
-				firstElement = true;
+				current.push(Json::State::Object), next = true;
 				return Json::State::Object;
 
 			case L'[':
-				current.push(Json::State::Array), ++nesting;
-				firstElement = true;
+				current.push(Json::State::Array), next = true;
 				return Json::State::Array;
 
 			case L'}':
 			case L']':
-				current.pop(), --nesting;
-				return (nesting > 0) ? Json::State::Next : Json::State::End;
+				current.pop(), next = false;
+				return (current.size() > nested) ? Json::State::Next : Json::State::End;
 
 			case L',':
-				return Next(nesting);
+				return ParseNext(nested);
 
 			case L'"':
-				if (std::exchange(firstElement, false))
+				if (std::exchange(next, false))
 				{
 					--txt;
-					return Next(nesting);
+					return ParseNext(nested);
 				}
 				return QuotedString();
 
 			default:
 				--txt;
-				if (std::exchange(firstElement, false))
+				if (std::exchange(next, false))
 				{
-					return Next(nesting);
+					return ParseNext(nested);
 				}
 				return UnquotedString();
 			}
@@ -135,21 +132,20 @@ public:
 		return Json::State::End;
 	}
 
-private:
-	Json::Value Next(int & nesting)
+	Json::Value ParseNext(size_t nested)
 	{
 		if (SkipWhiteSpace())
 		{
 			if (*txt == L'}' || *txt == L']')
 			{
 				++txt;
-				current.pop(), --nesting;
-				return (nesting > 0) ? Json::State::Next : Json::State::End;
+				current.pop();
+				return (current.size() > nested) ? Json::State::Next : Json::State::End;
 			}
 
 			if (current.empty() || current.top() == Json::State::Array)
 			{
-				return Parse(nesting);
+				return Parse(nested);
 			}
 			else
 			{
@@ -275,10 +271,10 @@ private:
 };
 
 
-Json::Json(std::shared_ptr<JsonContext> context) : m_context(context), m_nesting(0)
+Json::Json(std::shared_ptr<JsonContext> context) : m_nested(context->current.size()), m_context(context)
 {}
 
-Json::Json(std::wstring_view json) : m_context(std::make_shared<JsonContext>(json)), m_nesting(0)
+Json::Json(std::wstring_view text) : m_nested(0), m_context(std::make_shared<JsonContext>(text))
 {}
 
 Json::~Json() noexcept
@@ -286,5 +282,5 @@ Json::~Json() noexcept
 
 Json::Value Json::Parse()
 {
-	return m_context->Parse(m_nesting);
+	return m_context->Parse(m_nested);
 }

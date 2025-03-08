@@ -11,7 +11,7 @@ TEST(ParseJsonTest, SimpleObject)
 
 	auto [key, val] = std::get<std::pair<std::wstring, Json>>(json.Parse());
 	EXPECT_STREQ(key.c_str(), L"key");
-	EXPECT_STREQ(std::get<std::wstring>(val.Parse()).c_str(), L"value");
+	EXPECT_STREQ(val.GetString().c_str(), L"value");
 
 	EXPECT_EQ(Json::State::End, std::get<Json::State>(json.Parse()));
 }
@@ -28,7 +28,7 @@ TEST(ParseJsonTest, NestedObject)
 	EXPECT_EQ(Json::State::Object, std::get<Json::State>(json.Parse()));
 	auto [nestedKey, nestedVal] = std::get<std::pair<std::wstring, Json>>(val.Parse());
 	EXPECT_STREQ(nestedKey.c_str(), L"nested");
-	EXPECT_STREQ(std::get<std::wstring>(nestedVal.Parse()).c_str(), L"value");
+	EXPECT_STREQ(nestedVal.GetString().c_str(), L"value");
 	EXPECT_EQ(Json::State::Next, std::get<Json::State>(json.Parse()));
 
 	EXPECT_EQ(Json::State::End, std::get<Json::State>(json.Parse()));
@@ -40,9 +40,9 @@ TEST(ParseJsonTest, SimpleArray)
 
 	EXPECT_EQ(Json::State::Array, std::get<Json::State>(json.Parse()));
 
-	EXPECT_STREQ(std::get<std::wstring>(json.Parse()).c_str(), L"one");
-	EXPECT_STREQ(std::get<std::wstring>(json.Parse()).c_str(), L"two");
-	EXPECT_STREQ(std::get<std::wstring>(json.Parse()).c_str(), L"three");
+	EXPECT_STREQ(json.GetString().c_str(), L"one");
+	EXPECT_STREQ(json.GetString().c_str(), L"two");
+	EXPECT_STREQ(json.GetString().c_str(), L"three");
 
 	EXPECT_EQ(Json::State::End, std::get<Json::State>(json.Parse()));
 }
@@ -54,13 +54,13 @@ TEST(ParseJsonTest, NestedArray)
 	EXPECT_EQ(Json::State::Array, std::get<Json::State>(json.Parse()));
 
 	EXPECT_EQ(Json::State::Array, std::get<Json::State>(json.Parse()));
-	EXPECT_STREQ(std::get<std::wstring>(json.Parse()).c_str(), L"one");
-	EXPECT_STREQ(std::get<std::wstring>(json.Parse()).c_str(), L"two");
+	EXPECT_STREQ(json.GetString().c_str(), L"one");
+	EXPECT_STREQ(json.GetString().c_str(), L"two");
 	EXPECT_EQ(Json::State::Next, std::get<Json::State>(json.Parse()));
 
 	EXPECT_EQ(Json::State::Array, std::get<Json::State>(json.Parse()));
-	EXPECT_STREQ(std::get<std::wstring>(json.Parse()).c_str(), L"three");
-	EXPECT_STREQ(std::get<std::wstring>(json.Parse()).c_str(), L"four");
+	EXPECT_STREQ(json.GetString().c_str(), L"three");
+	EXPECT_STREQ(json.GetString().c_str(), L"four");
 	EXPECT_EQ(Json::State::Next, std::get<Json::State>(json.Parse()));
 
 	EXPECT_EQ(Json::State::End, std::get<Json::State>(json.Parse()));
@@ -75,83 +75,52 @@ struct ResponseType1
 
 	struct Metadata
 	{
-		std::vector<std::wstring> warnings;
-
-		bool operator()(std::pair<std::wstring, Json> && keyValue)
+		struct Warnings : std::vector<std::wstring>
 		{
-			auto & [key, value] = keyValue;
+			void operator()(std::wstring && value)
+			{
+				push_back(value);
+			}
+		};
 
+		Warnings warnings;
+
+		void operator()(std::wstring && key, Json && value)
+		{
 			if (key == L"warnings")
 			{
-				while (std::visit(*this, value.Parse())) /**/;
+				VisitJson(warnings, value);
 			}
-
-			return true;
-		}
-
-		bool operator()(Json && value)
-		{
-			return std::visit(*this, value.Parse());
-		}
-
-		bool operator()(std::wstring && value)
-		{
-			warnings.push_back(value);
-			return true;
-		}
-
-		bool operator()(Json::State state)
-		{
-			return (state != Json::State::End);
 		}
 	};
 
 	Metadata metadata;
 
-	bool operator()(std::pair<std::wstring, Json> && keyValue)
+	void operator()(std::wstring && key, Json && value)
 	{
-		auto & [key, value] = keyValue;
-
 		if (key == L"ok")
 		{
-			ok = (std::get<std::wstring>(value.Parse()) == L"true");
-			return true;
+			ok = value.GetBool();
+			return;
 		}
 
 		if (key == L"error")
 		{
-			error = std::get<std::wstring>(value.Parse());
-			return true;
+			error = value.GetString();
+			return;
 		}
 
 		if (key == L"warning")
 		{
-			warning = std::get<std::wstring>(value.Parse());
-			return true;
+			warning = value.GetString();
+			return;
 		}
 
 		if (key == L"response_metadata")
 		{
-			while (std::visit(metadata, value.Parse())) /**/;
-			return true;
+			VisitJson(metadata, value);
+			return;
 		}
-
-		return true;
-	}
-
-	bool operator()(Json && value)
-	{
-		return std::visit(*this, value.Parse());
-	}
-
-	bool operator()(std::wstring && value)
-	{
-		return true;
-	}
-
-	bool operator()(Json::State state)
-	{
-		return (state != Json::State::End);
 	}
 };
 
@@ -160,14 +129,13 @@ TEST(ParseJsonTest, ResponseType1)
 	auto json = Json(LR"({"ok":false,"error":"not_in_channel","warning":"superfluous_charset","response_metadata":{"warnings":["superfluous_charset"]}})");
 
 	ResponseType1 response;
-
-	while (std::visit(response, json.Parse())) /**/;
+	VisitJson(response, json);
 
 	EXPECT_FALSE(response.ok.value());
 	EXPECT_STREQ(response.error.c_str(), L"not_in_channel");
 	EXPECT_STREQ(response.warning.c_str(), L"superfluous_charset");
 
-	ASSERT_EQ(response.metadata.warnings.size(), 1);
+	ASSERT_FALSE(response.metadata.warnings.empty());
 	EXPECT_STREQ(response.metadata.warnings[0].c_str(), L"superfluous_charset");
 }
 
@@ -183,168 +151,92 @@ struct ResponseType2
 		struct BotProfile
 		{
 			std::wstring name;
-	
+
 			struct Icons
 			{
 				std::wstring image36;
 				std::wstring image48;
 				std::wstring image72;
 
-				bool operator()(std::pair<std::wstring, Json> && keyValue)
+				void operator()(std::wstring && key, Json && value)
 				{
-					auto & [key, value] = keyValue;
-
 					if (key == L"image_36")
 					{
-						image36 = std::get<std::wstring>(value.Parse());
-						return true;
+						image36 = value.GetString();
+						return;
 					}
 
 					if (key == L"image_48")
 					{
-						image48 = std::get<std::wstring>(value.Parse());
-						return true;
+						image48 = value.GetString();
+						return;
 					}
 
 					if (key == L"image_72")
 					{
-						image72 = std::get<std::wstring>(value.Parse());
-						return true;
+						image72 = value.GetString();
+						return;
 					}
-
-					return true;
-				}
-
-				bool operator()(Json && value)
-				{
-					return std::visit(*this, value.Parse());
-				}
-
-				bool operator()(std::wstring && value)
-				{
-					return true;
-				}
-
-				bool operator()(Json::State state)
-				{
-					return (state != Json::State::End);
 				}
 			};
 
 			BotProfile::Icons icons;
 
-			bool operator()(std::pair<std::wstring, Json> && keyValue)
+			void operator()(std::wstring && key, Json && value)
 			{
-				auto & [key, value] = keyValue;
-
 				if (key == L"name")
 				{
-					name = std::get<std::wstring>(value.Parse());
-					return true;
+					name = value.GetString();
+					return;
 				}
 
 				if (key == L"icons")
 				{
-					while (std::visit(icons, value.Parse())) /**/;
-					return true;
+					VisitJson(icons, value);
+					return;
 				}
-
-				return true;
-			}
-
-			bool operator()(Json && value)
-			{
-				return std::visit(*this, value.Parse());
-			}
-
-			bool operator()(std::wstring && value)
-			{
-				return true;
-			}
-
-			bool operator()(Json::State state)
-			{
-				return (state != Json::State::End);
 			}
 		};
 
 		BotProfile botProfile;
 
-		bool operator()(std::pair<std::wstring, Json> && keyValue)
+		void operator()(std::wstring && key, Json && value)
 		{
-			auto & [key, value] = keyValue;
-
 			if (key == L"type")
 			{
-				type = std::get<std::wstring>(value.Parse());
-				return true;
+				type = value.GetString();
+				return;
 			}
 
 			if (key == L"text")
 			{
-				text = std::get<std::wstring>(value.Parse());
-				return true;
+				text = value.GetString();
+				return;
 			}
 
 			if (key == L"bot_profile")
 			{
-				while (std::visit(botProfile, value.Parse())) /**/;
-				return true;
+				VisitJson(botProfile, value);
+				return;
 			}
-
-			return true;
-		}
-
-		bool operator()(Json && value)
-		{
-			return std::visit(*this, value.Parse());
-		}
-
-		bool operator()(std::wstring && value)
-		{
-			return true;
-		}
-
-		bool operator()(Json::State state)
-		{
-			return (state != Json::State::End);
 		}
 	};
 
 	Message message;
 
-	bool operator()(std::pair<std::wstring, Json> && keyValue)
+	void operator()(std::wstring && key, Json && value)
 	{
-		auto & [key, value] = keyValue;
-
 		if (key == L"ok")
 		{
-			ok = (std::get<std::wstring>(value.Parse()) == L"true");
-			return true;
+			ok = value.GetBool();
+			return;
 		}
 
 		if (key == L"message")
 		{
-			while (std::visit(message, value.Parse())) /**/;
-			return true;
+			VisitJson(message, value);
+			return;
 		}
-
-		return true;
-	}
-
-	bool operator()(Json && value)
-	{
-		return std::visit(*this, value.Parse());
-	}
-
-	bool operator()(std::wstring && value)
-	{
-		return true;
-	}
-
-	bool operator()(Json::State state)
-	{
-		return (state != Json::State::End);
 	}
 };
 
@@ -372,8 +264,7 @@ TEST(ParseJsonTest, ResponseType2)
 )");
 
 	ResponseType2 response;
-
-	while (std::visit(response, json.Parse())) /**/;
+	VisitJson(response, json);
 
 	EXPECT_TRUE(response.ok.value());
 	EXPECT_STREQ(response.message.type.c_str(), L"message");

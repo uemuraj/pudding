@@ -90,7 +90,7 @@ public:
 	JsonContext(std::wstring_view json) : txt(json.data()), end(json.data() + json.size()), firstElement(false)
 	{}
 
-	std::variant<Json::State, std::pair<std::wstring, Json>, Json, std::wstring> Parse(int & nesting)
+	Json::Value Parse(int & nesting)
 	{
 		if (SkipWhiteSpace())
 		{
@@ -136,7 +136,7 @@ public:
 	}
 
 private:
-	std::variant<Json::State, std::pair<std::wstring, Json>, Json, std::wstring> Next(int & nesting)
+	Json::Value Next(int & nesting)
 	{
 		if (SkipWhiteSpace())
 		{
@@ -284,7 +284,7 @@ Json::Json(std::wstring_view json) : m_context(std::make_shared<JsonContext>(jso
 Json::~Json() noexcept
 {}
 
-std::variant<Json::State, std::pair<std::wstring, Json>, Json, std::wstring> Json::Parse()
+Json::Value Json::Parse()
 {
 	return m_context->Parse(m_nesting);
 }

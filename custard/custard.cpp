@@ -228,9 +228,10 @@ public:
 		::OutputDebugStringW(L"=== Response ===\r\n");
 		::OutputDebugStringW(request.ResponseHeaders().c_str());
 #endif
+		auto contentType = request.ContentType();
 		auto response = request.ResponseData();
 
-		if (request.ContentType().starts_with(L"application/json"))
+		if (contentType.starts_with(L"application/json"))
 		{
 			auto text = ConvertFrom(response);
 			auto json = Json(text);

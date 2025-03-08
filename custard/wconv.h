@@ -2,6 +2,8 @@
 
 #include <string>
 #include <string_view>
+
+#include <cstddef>
 #include <vector>
 
 std::u8string ConvertFrom(std::wstring_view wstr);

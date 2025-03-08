@@ -6,6 +6,8 @@
 #include <utility>
 #include <variant>
 
+// TODO: u8string ‚ğ’¼Úˆ—‚Å‚«‚é‚æ‚¤‚É‚·‚é
+
 class JsonContext;
 
 class Json
@@ -20,8 +22,7 @@ public:
 	~Json() noexcept;
 
 	enum State { Object, Array, Next, End };
+	using Value = std::variant<State, std::pair<std::wstring, Json>, Json, std::wstring>;
 
-	std::variant<State, std::pair<std::wstring, Json>, Json, std::wstring> Parse();
+	Value Parse();
 };
-
-// TODO: u8string ‚ğ’¼Úˆ—‚Å‚«‚é‚æ‚¤‚É‚·‚é

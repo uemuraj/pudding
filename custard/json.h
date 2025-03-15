@@ -87,11 +87,3 @@ inline void VisitJson(T & visitor, Json & json)
 {
 	while (std::visit(JsonVisitor<T>(visitor), json.Parse())) /**/;
 }
-
-template <typename T>
-inline T VisitJson(Json & json)
-{
-	T visitor;
-	while (std::visit(JsonVisitor<T>(visitor), json.Parse())) /**/;
-	return visitor;
-}

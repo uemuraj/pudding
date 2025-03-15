@@ -51,8 +51,13 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /**/, _In_ LPWS
 
 		if (Parameters args(szCmdLine); args.size() > 2)
 		{
-			if (Custard(args[0]).PostToSlack(args[1], args[2]))
+			Custard custard(args[0]);
+
+			if (custard.Post(args[1], args[2]))
 			{
+				// TODO: Toaster notification with name and icon !!
+				auto name = custard.BotName();
+				auto icon = custard.BotIcon();
 				return 0;
 			}
 		}

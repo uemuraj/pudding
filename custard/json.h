@@ -7,83 +7,85 @@
 #include <utility>
 #include <variant>
 
-
-struct JsonContext;
-
-class Json
+namespace custard
 {
-	const size_t m_nested;
-	std::shared_ptr<JsonContext> m_context;
+	struct JsonContext;
 
-public:
-	Json(std::shared_ptr<JsonContext> context);
-	Json(std::wstring_view text);
-	~Json() noexcept;
-
-	enum State { Object, Array, Next, End };
-	using Value = std::variant<State, std::pair<std::wstring, Json>, Json, std::wstring>;
-
-	Value Parse();
-
-	bool GetBool()
+	class Json
 	{
-		return std::get<std::wstring>(Parse()) == L"true";
-	}
+		const size_t m_nested;
+		std::shared_ptr<JsonContext> m_context;
 
-	std::wstring GetString()
-	{
-		return std::get<std::wstring>(Parse());
-	}
-};
+	public:
+		Json(std::shared_ptr<JsonContext> context);
+		Json(std::wstring_view text);
+		~Json() noexcept;
 
+		enum State { Object, Array, Next, End };
+		using Value = std::variant<State, std::pair<std::wstring, Json>, Json, std::wstring>;
 
-template <typename T>
-class JsonVisitor
-{
-	T & m_visitor;
+		Value Parse();
 
-public:
-	JsonVisitor(T & visitor) : m_visitor(visitor)
-	{}
-
-	bool operator()(std::pair<std::wstring, Json> && keyValue)
-	{
-		if constexpr (std::is_invocable_v<T, std::wstring &&, Json &&>)
+		bool GetBool()
 		{
-			m_visitor(std::move(std::get<0>(keyValue)), std::move(std::get<1>(keyValue)));
+			return std::get<std::wstring>(Parse()) == L"true";
 		}
 
-		return true;
-	}
-
-	bool operator()(Json && value)
-	{
-		if constexpr (std::is_invocable_v<T, Json &&>)
+		std::wstring GetString()
 		{
-			m_visitor(std::move(value));
+			return std::get<std::wstring>(Parse());
+		}
+	};
+
+
+	template <typename T>
+	class JsonVisitor
+	{
+		T & m_visitor;
+
+	public:
+		JsonVisitor(T & visitor) : m_visitor(visitor)
+		{}
+
+		bool operator()(std::pair<std::wstring, Json> && keyValue)
+		{
+			if constexpr (std::is_invocable_v<T, std::wstring &&, Json &&>)
+			{
+				m_visitor(std::move(std::get<0>(keyValue)), std::move(std::get<1>(keyValue)));
+			}
+
+			return true;
 		}
 
-		return true;
-	}
-
-	bool operator()(std::wstring && value)
-	{
-		if constexpr (std::is_invocable_v<T, std::wstring &&>)
+		bool operator()(Json && value)
 		{
-			m_visitor(std::move(value));
+			if constexpr (std::is_invocable_v<T, Json &&>)
+			{
+				m_visitor(std::move(value));
+			}
+
+			return true;
 		}
 
-		return true;
-	}
+		bool operator()(std::wstring && value)
+		{
+			if constexpr (std::is_invocable_v<T, std::wstring &&>)
+			{
+				m_visitor(std::move(value));
+			}
 
-	bool operator()(Json::State state)
+			return true;
+		}
+
+		bool operator()(Json::State state)
+		{
+			return (state != Json::State::End);
+		}
+	};
+
+	template <typename T>
+	inline void VisitJson(T & visitor, Json & json)
 	{
-		return (state != Json::State::End);
+		while (std::visit(JsonVisitor<T>(visitor), json.Parse())) /**/;
 	}
-};
-
-template <typename T>
-inline void VisitJson(T & visitor, Json & json)
-{
-	while (std::visit(JsonVisitor<T>(visitor), json.Parse())) /**/;
 }

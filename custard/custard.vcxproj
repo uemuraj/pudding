@@ -141,15 +141,13 @@
   <ItemGroup>
     <ClInclude Include="custard.h" />
     <ClInclude Include="json.h" />
-    <ClInclude Include="wconv.h" />
-    <ClInclude Include="winhttps.h" />
+    <ClInclude Include="https.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="custard.cpp" />
     <ClCompile Include="json.cpp" />
-    <ClCompile Include="winhttps.cpp" />
+    <ClCompile Include="https.cpp" />
     <ClCompile Include="winmain.cpp" />
-    <ClCompile Include="wconv.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

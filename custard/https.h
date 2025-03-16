@@ -151,4 +151,8 @@ namespace custard
 
 		std::filesystem::path SaveTo(const std::filesystem::path & dest);
 	};
+
+	std::u8string ConvertFrom(std::wstring_view wstr);
+	std::wstring ConvertFrom(std::u8string_view u8str);
+	std::wstring ConvertFrom(const std::vector<std::byte> & data);
 }

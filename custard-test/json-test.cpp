@@ -2,6 +2,7 @@
 #include <json.h>
 #include <optional>
 
+using namespace custard;
 
 TEST(ParseJsonTest, SimpleObject)
 {

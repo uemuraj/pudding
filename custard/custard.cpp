@@ -1,14 +1,10 @@
-#include <Windows.h>
-#include <winhttp.h>
-
 #include <format>
 #include <optional>
 #include <functional>
 #include <system_error>
 
 #include "custard.h"
-#include "winhttps.h"
-#include "wconv.h"
+#include "https.h"
 #include "json.h"
 
 //

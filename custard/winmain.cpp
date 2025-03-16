@@ -4,7 +4,6 @@
 #include <locale>
 #include <system_error>
 
-
 class Parameters
 {
 	int m_argc;
@@ -51,13 +50,13 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /**/, _In_ LPWS
 
 		if (Parameters args(szCmdLine); args.size() > 2)
 		{
-			Custard custard(args[0]);
+			custard::SlackBot slackBot(args[0]);
 
-			if (custard.Post(args[1], args[2]))
+			if (slackBot.Post(args[1], args[2]))
 			{
 				// TODO: Toaster notification with name and icon !!
-				auto name = custard.BotName();
-				auto icon = custard.BotIcon();
+				auto name = slackBot.Name();
+				auto icon = slackBot.Icon();
 				return 0;
 			}
 		}

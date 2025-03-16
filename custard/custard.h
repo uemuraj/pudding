@@ -1,24 +1,38 @@
 #pragma once
 
 #include <memory>
-#include <filesystem>
 #include <string>
 #include <string_view>
+#include <filesystem>
 
-class SlackWebApi;
-
-class Custard
+namespace custard
 {
-	std::unique_ptr<SlackWebApi> m_webapi;
-	std::wstring m_token;
+	class SlackApi;
 
-public:
-	Custard(std::wstring_view token);
-	~Custard() noexcept;
+	class SlackBot
+	{
+		std::unique_ptr<SlackApi> m_api;
+		std::wstring m_token;
+		std::wstring m_name;
+		std::filesystem::path m_icon;
 
-	bool Post(std::wstring_view channel, std::wstring_view message);
+	public:
+		SlackBot(std::wstring_view token);
+		~SlackBot() noexcept;
 
-	std::wstring BotName();
+		bool Post(std::wstring_view channel, std::wstring_view message);
 
-	std::filesystem::path BotIcon();
-};
+		const std::wstring & Name()
+		{
+			return m_name;
+		}
+
+		const std::filesystem::path & Icon()
+		{
+			return m_icon;
+		}
+
+	private:
+		std::filesystem::path DownloadIcon(const std::wstring & url);
+	};
+}

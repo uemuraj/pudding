@@ -39,6 +39,32 @@ public:
 	}
 };
 
+class ExpandEnvironmentString
+{
+	std::wstring m_expanded;
+
+public:
+	ExpandEnvironmentString(const wchar_t * str)
+	{
+		if (const auto size = ::ExpandEnvironmentStringsW(str, nullptr, 0); size > 1)
+		{
+			m_expanded.resize((size_t) size - 1);
+
+			if (::ExpandEnvironmentStringsW(str, m_expanded.data(), size) > 1)
+			{
+				return;
+			}
+		}
+
+		throw std::system_error(::GetLastError(), std::system_category(), "ExpandEnvironmentStringsW()");
+	}
+
+	operator std::wstring_view() const noexcept
+	{
+		return m_expanded;
+	}
+};
+
 
 #include "custard.h"
 
@@ -52,7 +78,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /**/, _In_ LPWS
 		{
 			custard::SlackBot slackBot(args[0]);
 
-			if (slackBot.Post(args[1], args[2]))
+			if (slackBot.Post(args[1], ExpandEnvironmentString(args[2])))
 			{
 				// TODO: Toaster notification with name and icon !!
 				auto name = slackBot.Name();

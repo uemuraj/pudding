@@ -247,6 +247,13 @@ void PuddingWindow::WatchSession(const wchar_t * szCode, DWORD dwCode)
 {
 	auto & section = m_profileData->operator[](szCode);
 
+	// リモートユーザー名・ホスト名を環境変数に設定（アプリ固有の接頭辞付き）
+	const wchar_t * remoteUser = m_session.ClientUserName();
+	const wchar_t * remoteHost = m_session.ClientHostName();
+
+	::SetEnvironmentVariableW(L"PUDDING_REMOTE_USER", (remoteUser && *remoteUser) ? remoteUser : L"");
+	::SetEnvironmentVariableW(L"PUDDING_REMOTE_HOST", (remoteHost && *remoteHost) ? remoteHost : L"");
+
 	if (auto & commandLine = section[L"CommandLine"]; !commandLine.empty())
 	{
 		ExecuteCallback callback = [](const CommandLine & commandLine, DWORD exitCode, std::exception_ptr exception)

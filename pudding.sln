@@ -14,6 +14,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "custard", "custard\custard.
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "custard-test", "custard-test\custard-test.vcxproj", "{8033BF31-4F22-4B57-BD60-5761F3DE6A03}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ソリューション項目", "ソリューション項目", "{2022CB0F-8BAF-F49E-0C48-8EF4C96EC109}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -35,7 +40,6 @@ Global
 		{F265740A-CAB8-4633-B75E-74B5AC91ABB1}.Debug|x86.ActiveCfg = Debug|Win32
 		{F265740A-CAB8-4633-B75E-74B5AC91ABB1}.Debug|x86.Build.0 = Debug|Win32
 		{F265740A-CAB8-4633-B75E-74B5AC91ABB1}.Release|x64.ActiveCfg = Release|x64
-		{F265740A-CAB8-4633-B75E-74B5AC91ABB1}.Release|x64.Build.0 = Release|x64
 		{F265740A-CAB8-4633-B75E-74B5AC91ABB1}.Release|x86.ActiveCfg = Release|Win32
 		{F265740A-CAB8-4633-B75E-74B5AC91ABB1}.Release|x86.Build.0 = Release|Win32
 		{8FAD6F94-3196-4ABF-87A9-015434145072}.Debug|x64.ActiveCfg = Debug|x64
@@ -51,7 +55,6 @@ Global
 		{8033BF31-4F22-4B57-BD60-5761F3DE6A03}.Debug|x86.ActiveCfg = Debug|Win32
 		{8033BF31-4F22-4B57-BD60-5761F3DE6A03}.Debug|x86.Build.0 = Debug|Win32
 		{8033BF31-4F22-4B57-BD60-5761F3DE6A03}.Release|x64.ActiveCfg = Release|x64
-		{8033BF31-4F22-4B57-BD60-5761F3DE6A03}.Release|x64.Build.0 = Release|x64
 		{8033BF31-4F22-4B57-BD60-5761F3DE6A03}.Release|x86.ActiveCfg = Release|Win32
 		{8033BF31-4F22-4B57-BD60-5761F3DE6A03}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection

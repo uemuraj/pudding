@@ -179,6 +179,15 @@ std::wstring SearchExecutable(const wchar_t * path, const wchar_t * file, const 
 				throw std::system_error(error, std::system_category(), "SearchPathW()");
 			}
 
+			::OutputDebugStringW(L"SearchPathW(): file not found. ");
+			::OutputDebugStringW(L"path = ");
+			::OutputDebugStringW(path ? path : L"(null)");
+			::OutputDebugStringW(L", file = ");
+			::OutputDebugStringW(file ? file : L"(null)");
+			::OutputDebugStringW(L", ext = ");
+			::OutputDebugStringW(ext ? ext : L"(null)");
+			::OutputDebugStringW(L"\n");
+
 			buf.clear();
 			break;
 		}
@@ -203,6 +212,7 @@ class ExecuteContext : public STARTUPINFOW, PROCESS_INFORMATION
 	CommandLine m_commandLine;
 	std::vector<wchar_t> m_environment;
 	std::wstring m_directory;
+	std::wstring m_path; // ìWäJçœÇ›Path
 
 public:
 	ExecuteContext(ExecuteCallback callback, CommandLine && commandLine, const wchar_t * directory) noexcept :
@@ -212,6 +222,12 @@ public:
 		if (directory && *directory)
 		{
 			m_directory = ExpandEnvironmentValue(m_environment.data(), directory);
+		}
+		// PathÇ‡ìWäJÇµÇƒï€éù
+		const wchar_t * rawPath = GetEnvironmnetValuePtr(m_environment.data(), L"Path");
+		if (rawPath)
+		{
+			m_path = ExpandEnvironmentValue(m_environment.data(), rawPath);
 		}
 	}
 
@@ -290,7 +306,7 @@ private:
 
 	const wchar_t * GetPath() const noexcept
 	{
-		return GetEnvironmnetValuePtr(m_environment.data(), L"Path");
+		return m_path.empty() ? nullptr : m_path.c_str();
 	}
 
 	const wchar_t * GetWorkDirectory() const noexcept

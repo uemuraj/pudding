@@ -145,6 +145,7 @@
     <ClCompile Include="profile.cpp" />
     <ClCompile Include="pudding.cpp" />
     <ClCompile Include="registry.cpp" />
+    <ClCompile Include="service.cpp" />
     <ClCompile Include="thread.cpp" />
     <ClCompile Include="utility.cpp" />
     <ClCompile Include="winmain.cpp" />

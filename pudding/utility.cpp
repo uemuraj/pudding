@@ -86,3 +86,8 @@ bool CompareFileName(std::wstring_view a, std::wstring_view b)
 
 	return false;
 }
+
+bool ContainsSubstringIgnoreCase(const wchar_t * a, const wchar_t * b) noexcept
+{
+	return ::StrStrIW(a, b) != nullptr;
+}

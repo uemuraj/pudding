@@ -79,3 +79,62 @@ private:
 		return atom;
 	}
 };
+
+
+class MainService
+{
+	HANDLE m_hStopEvent;
+
+protected:
+	MainService() : m_hStopEvent(::CreateEventW(nullptr, true, false, nullptr))
+	{
+		if (!m_hStopEvent)
+		{
+			throw std::system_error(::GetLastError(), std::system_category(), "CreateEventW()");
+		}
+	}
+
+	~MainService()
+	{
+		if (m_hStopEvent)
+		{
+			::CloseHandle(m_hStopEvent);
+		}
+	}
+
+public:
+	static const MainService & GetInstance();
+
+	operator HANDLE() const
+	{
+		return m_hStopEvent;
+	}
+};
+
+
+template<std::size_t N>
+using WindowsServiceName = WindowClassName<N>;
+
+
+template <WindowsServiceName literal>
+class WindowsService
+{
+	SERVICE_TABLE_ENTRY m_table[2];
+
+public:
+	WindowsService(LPSERVICE_MAIN_FUNCTION fnServiceProc) : m_table{ { literal.value, fnServiceProc }, { nullptr, nullptr } }
+	{}
+
+	~WindowsService() noexcept
+	{
+		// StartServiceCtrlDispatcher ä÷êîÇÕå„èàóùÇïKóvÇ∆ÇµÇ»Ç¢ÇΩÇﬂâΩÇ‡ÇµÇ»Ç¢
+	}
+
+	void Run() const
+	{
+		if (!::StartServiceCtrlDispatcher(m_table))
+		{
+			throw std::system_error(::GetLastError(), std::system_category(), "StartServiceCtrlDispatcher()");
+		}
+	}
+};

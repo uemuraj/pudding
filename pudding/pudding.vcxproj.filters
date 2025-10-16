@@ -10,6 +10,7 @@
     <ClCompile Include="thread.cpp" />
     <ClCompile Include="registry.cpp" />
     <ClCompile Include="environment.cpp" />
+    <ClCompile Include="service.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="winmain.h" />

@@ -1,8 +1,9 @@
 #pragma once
 
 #include <Windows.h>
-#include <string>
 #include <utility>
+#include <string>
+#include <string_view>
 
 
 HINSTANCE GetInstance();
@@ -93,3 +94,5 @@ inline std::wstring GetParentPath(const std::wstring & fileName)
 }
 
 bool CompareFileName(std::wstring_view a, std::wstring_view b);
+
+bool ContainsSubstringIgnoreCase(const wchar_t * a, const wchar_t * b) noexcept;
